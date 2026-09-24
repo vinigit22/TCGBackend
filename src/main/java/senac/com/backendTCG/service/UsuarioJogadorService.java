@@ -1,4 +1,4 @@
 package senac.com.backendTCG.service;
 
-public class UsuarioService {
+public class UsuarioJogadorService {
 }

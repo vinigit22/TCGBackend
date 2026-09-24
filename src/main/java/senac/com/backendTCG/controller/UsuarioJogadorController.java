@@ -1,4 +1,4 @@
 package senac.com.backendTCG.controller;
 
-public class UsuarioController {
+public class UsuarioJogadorController {
 }

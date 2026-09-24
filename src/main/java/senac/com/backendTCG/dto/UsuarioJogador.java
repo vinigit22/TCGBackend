@@ -1,4 +1,4 @@
 package senac.com.backendTCG.dto;
 
-public class Usuario {
+public class UsuarioJogador {
 }
