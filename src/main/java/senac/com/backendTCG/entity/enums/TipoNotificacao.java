@@ -1,0 +1,13 @@
+package senac.com.backendTCG.entity.enums;
+
+public enum TipoNotificacao {
+    INSCRICAO_CONFIRMADA,
+    TORNEIO_INICIADO,
+    RODADA_INICIADA,
+    PAREAMENTO,
+    RESULTADO_REGISTRADO,
+    TORNEIO_FINALIZADO,
+    EVENTO_ATUALIZADO,
+    TORNEIO_CANCELADO,
+    AVISO_GERAL
+}

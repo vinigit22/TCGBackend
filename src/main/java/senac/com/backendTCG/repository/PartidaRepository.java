@@ -1,4 +1,15 @@
 package senac.com.backendTCG.repository;
 
-public interface PartidaRepository {
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import senac.com.backendTCG.entity.Partida;
+
+import java.util.List;
+
+@Repository
+public interface PartidaRepository extends JpaRepository<Partida, Long> {
+    List<Partida> findByRodada_IdOrderByMesaAsc(Long rodadaId);
+    List<Partida> findByRodada_Torneio_IdOrderByRodada_NumeroAscMesaAsc(Long torneioId);
+    boolean existsByRodada_IdAndMesa(Long rodadaId, Integer mesa);
+    boolean existsByRodada_IdAndMesaAndIdNot(Long rodadaId, Integer mesa, Long id);
 }

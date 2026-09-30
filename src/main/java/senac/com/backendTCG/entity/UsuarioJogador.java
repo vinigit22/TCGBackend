@@ -1,40 +1,65 @@
-
 package senac.com.backendTCG.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
+// Perfil de jogador (tabela "jogador"). A chave primaria e o id da propria conta.
 @Entity
-@Table(name = "usuariojogador")
+@Table(name = "jogador")
 @Getter
 @Setter
 public class UsuarioJogador {
 
     @Id
-    @GeneratedValue
-    @Column(name = "ID")
-    private UUID id;
+    @Column(name = "conta_id")
+    private Long contaId;
 
-    @Column(name = "NICK", length = 15, nullable = false)
-    private String nick;
+    @JsonIgnore
+    @MapsId
+    @OneToOne(optional = false)
+    @JoinColumn(name = "conta_id")
+    private Conta conta;
 
-    @Column(name = "EMAIL", length = 30, nullable = false)
-    private String email;
+    @Column(name = "nome", length = 150, nullable = false)
+    private String nome;
 
-    @Column(name = "SENHA_HASH", nullable = false)
-    private String senhaHash;
+    @Column(name = "nickname", length = 50, nullable = false)
+    private String nickname;
 
-    @Column(name = "FOTO_PERFIL", columnDefinition = "TEXT")
-    private String fotoPerfil;
+    @Column(name = "imagem_perfil", length = 500)
+    private String imagemPerfil;
 
-    @Column(name = "BIO", columnDefinition = "TEXT")
+    @Column(name = "bio", length = 500)
     private String bio;
 
-    @Column(name = "CRIADO_EM", nullable = false)
+    @Column(name = "data_nascimento")
+    private LocalDate dataNascimento;
+
+    @Column(name = "cidade", length = 120)
+    private String cidade;
+
+    @Column(name = "estado", length = 2)
+    private String estado;
+
+    @Column(name = "criado_em", nullable = false, updatable = false)
     private LocalDateTime criadoEm;
 
+    @Column(name = "atualizado_em", nullable = false)
+    private LocalDateTime atualizadoEm;
+
+    @PrePersist
+    void prePersist() {
+        criadoEm = LocalDateTime.now();
+        atualizadoEm = criadoEm;
+    }
+
+    @PreUpdate
+    void preUpdate() {
+        atualizadoEm = LocalDateTime.now();
+    }
 }
