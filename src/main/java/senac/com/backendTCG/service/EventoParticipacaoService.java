@@ -6,7 +6,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import senac.com.backendTCG.dto.EventoParticipacaoRequest;
-import senac.com.backendTCG.entity.Conta;
 import senac.com.backendTCG.entity.Evento;
 import senac.com.backendTCG.entity.EventoParticipacao;
 import senac.com.backendTCG.entity.UsuarioJogador;
@@ -113,10 +112,7 @@ public class EventoParticipacaoService {
     }
 
     private void verificarJogadorOuEquipe(EventoParticipacao participacao) {
-        Conta logada = permissaoService.contaLogada();
-
-        if (!logada.getId().equals(participacao.getJogador().getContaId())) {
-            permissaoService.verificarEquipeLoja(participacao.getEvento().getLoja().getContaId());
-        }
+        permissaoService.verificarContaOuEquipeLoja(
+                participacao.getJogador().getContaId(), participacao.getEvento().getLoja().getContaId());
     }
 }

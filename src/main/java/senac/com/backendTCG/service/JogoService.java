@@ -36,7 +36,7 @@ public class JogoService {
     public Jogo criar(JogoRequest request) {
         permissaoService.verificarAdmin();
 
-        String slug = gerarSlug(request.slug(), request.nome());
+        String slug = SlugUtils.definir(request.slug(), request.nome(), null);
 
         if (jogoRepository.existsByNome(request.nome())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Nome já cadastrado");
@@ -62,10 +62,7 @@ public class JogoService {
         permissaoService.verificarAdmin();
         Jogo jogo = buscarPorId(id);
 
-        // Slug vazio na edicao = mantem o atual
-        String slug = request.slug() == null || request.slug().isBlank()
-                ? jogo.getSlug()
-                : gerarSlug(request.slug(), request.nome());
+        String slug = SlugUtils.definir(request.slug(), request.nome(), jogo.getSlug());
 
         if (jogoRepository.existsByNomeAndIdNot(request.nome(), id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Nome já cadastrado");
@@ -97,15 +94,5 @@ public class JogoService {
         }
 
         jogoRepository.delete(jogo);
-    }
-
-    private String gerarSlug(String slug, String nome) {
-        String gerado = SlugUtils.gerar(slug == null || slug.isBlank() ? nome : slug);
-
-        if (gerado.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não foi possível gerar um slug válido");
-        }
-
-        return gerado;
     }
 }

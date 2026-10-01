@@ -97,7 +97,7 @@ As respostas de erro vêm em JSON, com a mensagem no campo `detail`:
 
 ```
 src/main/java/senac/com/backendTCG
-├── config/       inicializadores (admin e jogos) e procedures do H2
+├── config/       criação do admin e procedures do H2
 ├── controller/   rotas REST
 ├── dto/          corpos de requisição e resposta
 ├── entity/       tabelas do banco (+ enums)

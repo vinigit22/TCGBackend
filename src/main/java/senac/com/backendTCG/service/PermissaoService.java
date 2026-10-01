@@ -74,6 +74,12 @@ public class PermissaoService {
                 HttpStatus.FORBIDDEN, "Apenas a equipe da loja pode realizar esta ação");
     }
 
+    // A propria conta (ex.: o jogador dono da inscricao) ou a equipe da loja
+    public Conta verificarContaOuEquipeLoja(Long contaId, Long lojaId) {
+        Conta conta = contaLogada();
+        return conta.getId().equals(contaId) ? conta : verificarEquipeLoja(lojaId);
+    }
+
     // Dono da loja: a conta da propria loja, membro PROPRIETARIO ativo ou um administrador
     public Conta verificarProprietarioLoja(Long lojaId) {
         Conta conta = contaLogada();

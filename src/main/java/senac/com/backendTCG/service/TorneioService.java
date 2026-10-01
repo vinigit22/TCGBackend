@@ -14,8 +14,10 @@ import senac.com.backendTCG.entity.Formato;
 import senac.com.backendTCG.entity.Jogo;
 import senac.com.backendTCG.entity.Torneio;
 import senac.com.backendTCG.entity.UsuarioLoja;
+import senac.com.backendTCG.entity.enums.StatusInscricao;
 import senac.com.backendTCG.entity.enums.StatusTorneio;
 import senac.com.backendTCG.entity.enums.TipoNotificacao;
+import senac.com.backendTCG.repository.InscricaoRepository;
 import senac.com.backendTCG.repository.TorneioRepository;
 
 import java.math.BigDecimal;
@@ -31,6 +33,7 @@ public class TorneioService {
     private static final Set<Integer> VAGAS_PERMITIDAS = Set.of(2, 4, 8, 16, 32, 64, 128, 256);
 
     private final TorneioRepository torneioRepository;
+    private final InscricaoRepository inscricaoRepository;
     private final UsuarioLojaService usuarioLojaService;
     private final JogoService jogoService;
     private final FormatoService formatoService;
@@ -68,6 +71,14 @@ public class TorneioService {
     public Torneio atualizar(Long id, TorneioRequest request) {
         Torneio torneio = buscarPorId(id);
         verificarPodeGerenciar(torneio);
+
+        long ocupadas = inscricaoRepository.countByTorneio_IdAndStatusIn(
+                id, List.of(StatusInscricao.INSCRITO, StatusInscricao.CONFIRMADO));
+
+        if (request.vagasMax() < ocupadas) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "O torneio já tem " + ocupadas + " inscritos; vagasMax não pode ser menor que isso");
+        }
 
         preencher(torneio, request);
         return torneioRepository.save(torneio);
@@ -153,7 +164,7 @@ public class TorneioService {
     }
 
     // Mesma regra das triggers trg_torneio_bloqueia_update / trg_torneio_bloqueia_delete
-    public void verificarEditavel(Torneio torneio) {
+    private void verificarEditavel(Torneio torneio) {
         if (torneio.getStatus() == StatusTorneio.FINALIZADO) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Torneio finalizado não pode ser alterado");
         }

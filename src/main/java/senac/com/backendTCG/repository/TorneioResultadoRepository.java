@@ -21,6 +21,4 @@ public interface TorneioResultadoRepository extends JpaRepository<TorneioResulta
                                    @Param("jogadorId") Long jogadorId);
 
     boolean existsByTorneio_IdAndJogador_ContaId(Long torneioId, Long jogadorId);
-
-    boolean existsByTorneio_IdAndJogador_ContaIdAndIdNot(Long torneioId, Long jogadorId, Long id);
 }

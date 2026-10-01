@@ -11,6 +11,7 @@ import senac.com.backendTCG.entity.Conta;
 import senac.com.backendTCG.entity.enums.TipoConta;
 import senac.com.backendTCG.repository.AdministradorRepository;
 import senac.com.backendTCG.repository.ContaRepository;
+import senac.com.backendTCG.service.ContaService;
 
 // Garante um administrador com senha conhecida (os hashes do script SQL sao apenas exemplos)
 @Component
@@ -33,13 +34,15 @@ public class AdminInitializer implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
+        // Mesma normalizacao do login (minusculas), senao ADMIN_EMAIL com maiusculas nunca logaria
+        String emailAdmin = ContaService.normalizarEmail(email);
 
-        if (contaRepository.existsByEmail(email)) {
+        if (contaRepository.existsByEmail(emailAdmin)) {
             return;
         }
 
         Conta conta = new Conta();
-        conta.setEmail(email);
+        conta.setEmail(emailAdmin);
         conta.setSenhaHash(passwordEncoder.encode(senha));
         conta.setTipo(TipoConta.ADMIN);
         conta.setEmailVerificado(true);
@@ -50,6 +53,6 @@ public class AdminInitializer implements CommandLineRunner {
         admin.setNome(nome);
         administradorRepository.save(admin);
 
-        System.out.println("ADMIN CRIADO: " + email);
+        System.out.println("ADMIN CRIADO: " + emailAdmin);
     }
 }

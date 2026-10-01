@@ -50,7 +50,7 @@ public class UsuarioLojaService {
     // Cria a conta (tipo LOJA), o perfil e o vinculo de PROPRIETARIO na mesma transacao
     @Transactional
     public UsuarioLoja criar(RegistroLojaRequest request) {
-        String slug = gerarSlug(request.slug(), request.nome());
+        String slug = SlugUtils.definir(request.slug(), request.nome(), null);
 
         if (usuarioLojaRepository.existsBySlug(slug)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Slug já cadastrado");
@@ -82,10 +82,7 @@ public class UsuarioLojaService {
         permissaoService.verificarProprietarioLoja(id);
         UsuarioLoja loja = buscarPorId(id);
 
-        // Slug vazio na edicao = mantem o atual
-        String slug = request.slug() == null || request.slug().isBlank()
-                ? loja.getSlug()
-                : gerarSlug(request.slug(), request.nome());
+        String slug = SlugUtils.definir(request.slug(), request.nome(), loja.getSlug());
 
         if (usuarioLojaRepository.existsBySlugAndContaIdNot(slug, id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Slug já cadastrado");
@@ -129,15 +126,5 @@ public class UsuarioLojaService {
                          ORDER BY data_inicio
                         """,
                 new DataClassRowMapper<>(AgendaLojaResponse.class), id);
-    }
-
-    private String gerarSlug(String slug, String nome) {
-        String gerado = SlugUtils.gerar(slug == null || slug.isBlank() ? nome : slug);
-
-        if (gerado.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não foi possível gerar um slug válido");
-        }
-
-        return gerado;
     }
 }

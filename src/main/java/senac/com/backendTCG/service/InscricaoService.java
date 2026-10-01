@@ -7,7 +7,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import senac.com.backendTCG.dto.InscricaoRequest;
-import senac.com.backendTCG.entity.Conta;
 import senac.com.backendTCG.entity.Inscricao;
 import senac.com.backendTCG.entity.Torneio;
 import senac.com.backendTCG.entity.UsuarioJogador;
@@ -154,11 +153,7 @@ public class InscricaoService {
     public Inscricao cancelar(Long id) {
         Inscricao inscricao = buscarPorId(id);
         Torneio torneio = inscricao.getTorneio();
-        Conta logada = permissaoService.contaLogada();
-
-        if (!logada.getId().equals(inscricao.getJogador().getContaId())) {
-            permissaoService.verificarEquipeLoja(torneio.getLoja().getContaId());
-        }
+        permissaoService.verificarContaOuEquipeLoja(inscricao.getJogador().getContaId(), torneio.getLoja().getContaId());
 
         if (torneio.getStatus() == StatusTorneio.EM_ANDAMENTO || torneio.getStatus() == StatusTorneio.FINALIZADO) {
             throw new ResponseStatusException(

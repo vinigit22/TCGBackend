@@ -97,6 +97,12 @@ public class PartidaService {
                     HttpStatus.CONFLICT, "A partida ainda não tem os dois jogadores definidos");
         }
 
+        // Registrar de novo avancaria outro vencedor e bagunçaria a chave ja montada
+        if (partida.getStatus() == StatusPartida.FINALIZADA) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "O resultado desta partida já foi registrado. Para corrigir, use PUT /partidas/{id}.");
+        }
+
         jdbcTemplate.update("CALL sp_registrar_resultado(?, ?, ?, ?, ?)",
                 id,
                 request.gamesA(),
