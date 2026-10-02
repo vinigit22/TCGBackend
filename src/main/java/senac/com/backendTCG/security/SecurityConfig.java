@@ -1,6 +1,7 @@
 package senac.com.backendTCG.security;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -42,7 +43,24 @@ public class SecurityConfig {
             "/torneio-resultados/**"
     };
 
+    // Cadastro, login e recuperacao de conta
+    private static final String[] POST_PUBLICOS = {
+            "/auth/login",
+            "/auth/registro/**",
+            "/auth/esqueci-senha",
+            "/auth/redefinir-senha",
+            "/jogadores",
+            "/lojas"
+    };
+
     private final JwtFilter jwtFilter;
+
+    // So o perfil h2 liga o console; nos outros perfis a rota nem e liberada
+    @Value("${spring.h2.console.enabled:false}")
+    private boolean consoleH2;
+
+    @Value("${app.cors.origens}")
+    private String[] origensCors;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -54,30 +72,36 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(ex ->
                         ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
-                // O console do H2 usa frames da mesma origem
-                .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
-                .authorizeHttpRequests(auth -> auth
-                        // Preflight do navegador
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/error").permitAll()
-                        // Console do H2 (so existe no perfil "h2"; no perfil "mysql" a rota nao existe)
-                        .requestMatchers("/h2-console/**").permitAll()
-                        // Login e cadastro
-                        .requestMatchers(HttpMethod.POST,
-                                "/auth/login", "/auth/registro/**", "/jogadores", "/lojas").permitAll()
-                        .requestMatchers(HttpMethod.GET, GET_PUBLICOS).permitAll()
-                        // O resto exige token; as regras de dono/equipe/admin ficam nos services
-                        .anyRequest().authenticated()
-                )
+                .headers(headers -> {
+                    // O console do H2 usa frames da mesma origem
+                    if (consoleH2) {
+                        headers.frameOptions(frame -> frame.sameOrigin());
+                    }
+                })
+                .authorizeHttpRequests(auth -> {
+                    // Preflight do navegador
+                    auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                            .requestMatchers("/error").permitAll()
+                            .requestMatchers(HttpMethod.POST, POST_PUBLICOS).permitAll()
+                            .requestMatchers(HttpMethod.GET, GET_PUBLICOS).permitAll();
+
+                    if (consoleH2) {
+                        auth.requestMatchers("/h2-console/**").permitAll();
+                    }
+
+                    // O resto exige token; as regras de dono/equipe/admin ficam nos services
+                    auth.anyRequest().authenticated();
+                })
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
+    // Origens aceitas vem de app.cors.origens (variavel CORS_ORIGENS)
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("*"));
+        config.setAllowedOriginPatterns(List.of(origensCors));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
 

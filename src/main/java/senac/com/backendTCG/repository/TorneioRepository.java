@@ -7,6 +7,8 @@ import org.springframework.stereotype.Repository;
 import senac.com.backendTCG.entity.Torneio;
 import senac.com.backendTCG.entity.enums.StatusTorneio;
 
+import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -31,4 +33,11 @@ public interface TorneioRepository extends JpaRepository<Torneio, Long> {
     boolean existsByJogo_Id(Integer jogoId);
 
     boolean existsByFormato_Id(Integer formatoId);
+
+    // Usadas pelo agendador (TorneioScheduler)
+    List<Torneio> findByStatusAndInscricoesAteBeforeAndDeletadoEmIsNull(StatusTorneio status, LocalDateTime limite);
+
+    List<Torneio> findByStatusInAndDataInicioBetweenAndDeletadoEmIsNull(Collection<StatusTorneio> status,
+                                                                         LocalDateTime inicio,
+                                                                         LocalDateTime fim);
 }

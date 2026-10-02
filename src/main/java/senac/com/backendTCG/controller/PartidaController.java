@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import senac.com.backendTCG.dto.DesempateRequest;
 import senac.com.backendTCG.dto.PartidaRequest;
 import senac.com.backendTCG.dto.ResultadoPartidaRequest;
 import senac.com.backendTCG.entity.Partida;
@@ -41,11 +42,18 @@ public class PartidaController {
         return ResponseEntity.ok(partidaService.atualizar(id, request));
     }
 
-    // Executa a procedure sp_registrar_resultado (avanca o vencedor na chave)
+    // Registra o resultado e avanca o vencedor na chave (a final encerra o torneio)
     @PostMapping("/{id}/resultado")
     public ResponseEntity<Partida> registrarResultado(@PathVariable Long id,
                                                       @Valid @RequestBody ResultadoPartidaRequest request) {
         return ResponseEntity.ok(partidaService.registrarResultado(id, request));
+    }
+
+    // Decide uma partida empatada: { "vencedor": "A" | "B" }
+    @PostMapping("/{id}/desempate")
+    public ResponseEntity<Partida> registrarDesempate(@PathVariable Long id,
+                                                      @Valid @RequestBody DesempateRequest request) {
+        return ResponseEntity.ok(partidaService.registrarDesempate(id, request));
     }
 
     @DeleteMapping("/{id}")

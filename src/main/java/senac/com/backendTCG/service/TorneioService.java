@@ -23,14 +23,26 @@ import senac.com.backendTCG.repository.TorneioRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class TorneioService {
 
-    // Mesma regra do CHECK ck_torneio_vagas (chave eliminatoria completa)
+    // Mesma regra do CHECK ck_torneio_vagas
     private static final Set<Integer> VAGAS_PERMITIDAS = Set.of(2, 4, 8, 16, 32, 64, 128, 256);
+
+    // Mudancas permitidas em PUT /torneios/{id}/status. EM_ANDAMENTO so e alcancado gerando a chave,
+    // e FINALIZADO, registrando o resultado da final.
+    private static final Map<StatusTorneio, Set<StatusTorneio>> TRANSICOES = Map.of(
+            StatusTorneio.RASCUNHO, Set.of(StatusTorneio.INSCRICOES_ABERTAS, StatusTorneio.CANCELADO),
+            StatusTorneio.INSCRICOES_ABERTAS, Set.of(StatusTorneio.RASCUNHO, StatusTorneio.INSCRICOES_ENCERRADAS,
+                    StatusTorneio.CANCELADO),
+            StatusTorneio.INSCRICOES_ENCERRADAS, Set.of(StatusTorneio.INSCRICOES_ABERTAS, StatusTorneio.CANCELADO),
+            StatusTorneio.EM_ANDAMENTO, Set.of(StatusTorneio.CANCELADO),
+            StatusTorneio.FINALIZADO, Set.of(),
+            StatusTorneio.CANCELADO, Set.of());
 
     private final TorneioRepository torneioRepository;
     private final InscricaoRepository inscricaoRepository;
@@ -40,6 +52,7 @@ public class TorneioService {
     private final EnderecoService enderecoService;
     private final PermissaoService permissaoService;
     private final NotificacaoService notificacaoService;
+    private final ChaveamentoService chaveamentoService;
     private final JdbcTemplate jdbcTemplate;
 
     public List<Torneio> listar(Long lojaId, Integer jogoId, StatusTorneio status) {
@@ -93,14 +106,17 @@ public class TorneioService {
             return torneio;
         }
 
-        torneio.setStatus(status);
-        if (status == StatusTorneio.FINALIZADO) {
-            // a trigger trg_torneio_finalizacao faz o mesmo no banco
-            torneio.setFinalizadoEm(LocalDateTime.now());
+        if (!TRANSICOES.get(torneio.getStatus()).contains(status)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, mensagemTransicaoInvalida(torneio.getStatus(), status));
         }
 
+        torneio.setStatus(status);
         Torneio salvo = torneioRepository.save(torneio);
-        notificarMudancaDeStatus(salvo);
+
+        if (status == StatusTorneio.CANCELADO) {
+            notificacaoService.notificarInscritosTorneio(salvo, TipoNotificacao.TORNEIO_CANCELADO,
+                    "Torneio cancelado", "O torneio '" + salvo.getTitulo() + "' foi cancelado pela loja.");
+        }
         return salvo;
     }
 
@@ -114,19 +130,14 @@ public class TorneioService {
         torneioRepository.save(torneio);
     }
 
-    // Chama a procedure sp_gerar_chaveamento: sorteia os CONFIRMADOS, cria rodadas e partidas,
-    // liga a arvore da chave e muda o torneio para EM_ANDAMENTO
+    // Sorteia os CONFIRMADOS (com byes quando nao fecham uma potencia de 2), cria rodadas e partidas
+    // e muda o torneio para EM_ANDAMENTO
     @Transactional
     public List<ChaveamentoResponse> gerarChaveamento(Long id) {
         Torneio torneio = buscarPorId(id);
         verificarPodeGerenciar(torneio);
 
-        jdbcTemplate.update("CALL sp_gerar_chaveamento(?)", id);
-
-        notificacaoService.notificarInscritosTorneio(torneio, TipoNotificacao.PAREAMENTO,
-                "Chave sorteada",
-                "A chave do torneio '" + torneio.getTitulo() + "' foi sorteada. Confira seu adversário!");
-
+        chaveamentoService.gerar(torneio);
         return listarChaveamento(id);
     }
 
@@ -206,21 +217,14 @@ public class TorneioService {
         torneio.setDataInicio(request.dataInicio());
     }
 
-    private void notificarMudancaDeStatus(Torneio torneio) {
-        String titulo = torneio.getTitulo();
-
-        switch (torneio.getStatus()) {
-            case EM_ANDAMENTO -> notificacaoService.notificarInscritosTorneio(torneio,
-                    TipoNotificacao.TORNEIO_INICIADO, "Torneio iniciado",
-                    "O torneio '" + titulo + "' começou. Boa sorte!");
-            case FINALIZADO -> notificacaoService.notificarInscritosTorneio(torneio,
-                    TipoNotificacao.TORNEIO_FINALIZADO, "Torneio finalizado",
-                    "O torneio '" + titulo + "' foi finalizado. Confira a classificação.");
-            case CANCELADO -> notificacaoService.notificarInscritosTorneio(torneio,
-                    TipoNotificacao.TORNEIO_CANCELADO, "Torneio cancelado",
-                    "O torneio '" + titulo + "' foi cancelado pela loja.");
-            default -> {
-            }
+    private String mensagemTransicaoInvalida(StatusTorneio atual, StatusTorneio novo) {
+        if (novo == StatusTorneio.EM_ANDAMENTO) {
+            return "O torneio entra em andamento ao gerar a chave (POST /torneios/{id}/chaveamento).";
         }
+        if (novo == StatusTorneio.FINALIZADO) {
+            return "O torneio é finalizado automaticamente ao registrar o resultado da final.";
+        }
+        return "Não é possível mudar o torneio de " + atual + " para " + novo
+                + ". Permitido a partir de " + atual + ": " + TRANSICOES.get(atual) + ".";
     }
 }

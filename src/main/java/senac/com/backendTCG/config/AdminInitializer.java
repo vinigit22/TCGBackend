@@ -41,6 +41,12 @@ public class AdminInitializer implements CommandLineRunner {
             return;
         }
 
+        // Sem senha padrao fora do perfil h2: o admin so e criado com ADMIN_SENHA definida
+        if (senha == null || senha.isBlank()) {
+            System.out.println("AVISO: administrador não criado. Defina a variável de ambiente ADMIN_SENHA.");
+            return;
+        }
+
         Conta conta = new Conta();
         conta.setEmail(emailAdmin);
         conta.setSenhaHash(passwordEncoder.encode(senha));

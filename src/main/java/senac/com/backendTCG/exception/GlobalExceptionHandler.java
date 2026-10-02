@@ -28,7 +28,7 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
-    // SQLSTATE usado pelos SIGNAL das triggers e procedures do TorneioTCG_SQL.sql
+    // SQLSTATE usado pelos SIGNAL das triggers do TorneioTCG_SQL.sql (MySQL)
     private static final String SQLSTATE_REGRA_DO_BANCO = "45000";
 
     // Erros do @Valid: devolve a lista de campos invalidos
@@ -70,7 +70,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ProblemDetail handleBancoDeDados(RuntimeException ex) {
         SQLException regraDoBanco = encontrarRegraDoBanco(ex);
 
-        // Regra de negocio barrada por trigger/procedure: devolve a mensagem do proprio banco
+        // Regra de negocio barrada por trigger: devolve a mensagem do proprio banco
         if (regraDoBanco != null) {
             return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, regraDoBanco.getMessage());
         }
@@ -84,7 +84,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, "Erro ao acessar o banco de dados");
     }
 
-    // Procura em toda a cadeia de causas: no H2 o erro da procedure pode vir embrulhado em outra SQLException
+    // Procura em toda a cadeia de causas: o erro do banco costuma vir embrulhado em outras excecoes
     private SQLException encontrarRegraDoBanco(Throwable ex) {
         for (Throwable causa = ex; causa != null; causa = causa.getCause()) {
             if (causa instanceof SQLException sqlException

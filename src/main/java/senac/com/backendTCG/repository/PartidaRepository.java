@@ -12,4 +12,7 @@ public interface PartidaRepository extends JpaRepository<Partida, Long> {
     List<Partida> findByRodada_Torneio_IdOrderByRodada_NumeroAscMesaAsc(Long torneioId);
     boolean existsByRodada_IdAndMesa(Long rodadaId, Integer mesa);
     boolean existsByRodada_IdAndMesaAndIdNot(Long rodadaId, Integer mesa, Long id);
+
+    // Partidas da rodada anterior que alimentam esta (arvore da chave)
+    List<Partida> findByProximaPartidaId(Long proximaPartidaId);
 }

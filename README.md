@@ -1,12 +1,31 @@
-# TCG Backend
+# TCG Backend — versão 2
 
 API REST para lojas de card game organizarem torneios e eventos, e para jogadores se inscreverem, acompanharem a chave e colecionarem troféus.
 
 **Stack:** Java 21 · Spring Boot 4.1 · Spring Data JPA (Hibernate) · Spring Security + JWT · MySQL 8 / H2
 
+## Novidades da versão 2
+
+**Regras do torneio**
+- **Chave com bye:** a chave aceita qualquer número de confirmados (mínimo 2). Quem fica sem adversário avança direto. Antes, o número de confirmados precisava ser igual ao de vagas.
+- **Avanço automático:** o vencedor vai para a próxima partida, a rodada encerra e a seguinte começa sozinha, e os jogadores são avisados quando a partida deles fica pronta.
+- **Final encerra o torneio:** registrar o resultado da final finaliza o torneio e gera a classificação (1º, 2º, 3º...) e os troféus.
+- **Status com regras:** o torneio só muda de status por caminhos válidos. `EM_ANDAMENTO` vem ao gerar a chave e `FINALIZADO`, ao registrar a final.
+- **Desempate:** uma partida empatada fica aguardando e é decidida em `POST /partidas/{id}/desempate`.
+- **Games e placar:** cadastrar games atualiza o placar da partida, e o placar precisa conferir com o resultado.
+- **Prazos automáticos:** as inscrições fecham sozinhas em `inscricoesAte`, e os inscritos recebem um lembrete quando faltam menos de 24 h.
+
+**Contas e segurança**
+- **"Esqueci minha senha":** a senha pode ser redefinida com um código enviado por email.
+- **Sessões:** existe logout, e trocar a senha encerra as sessões abertas em outros dispositivos.
+- **Limite de login:** depois de 5 senhas erradas em 15 minutos, o login daquele email fica bloqueado (429).
+- **Valores de desenvolvimento isolados:** chave JWT e senha do admin só têm valor padrão no perfil H2. O CORS é configurável, e o console do H2 só existe no perfil H2.
+
+**Mudança técnica:** o chaveamento e os resultados agora rodam em Java (`ChaveamentoService`), igual no H2 e no MySQL. As procedures do script SQL não são mais chamadas; as views e as triggers continuam valendo.
+
 ## Como rodar
 
-**Com H2 (padrão, para testes).** Não precisa instalar banco:
+**Com H2 (padrão, para testes).** Não precisa instalar banco nem configurar nada:
 
 ```bash
 ./mvnw spring-boot:run        # Windows: mvnw.cmd spring-boot:run
@@ -20,13 +39,26 @@ A API sobe em `http://localhost:8080`, já com dados de teste. Os dados voltam a
    ```bash
    mysql -u root -p < TorneioTCG_SQL.sql
    ```
-2. Suba com o perfil `mysql`:
+2. Defina pelo menos `JWT_SECRET` e, na primeira execução, `ADMIN_SENHA`, e suba com o perfil `mysql`:
    ```bash
+   export JWT_SECRET="uma-chave-longa-com-pelo-menos-32-caracteres"
+   export ADMIN_SENHA="senha-do-admin"
    ./mvnw spring-boot:run -Dspring-boot.run.profiles=mysql
    ```
-   A conexão padrão é `root` / `root` em `localhost:3306`. Para mudar, use as variáveis `DB_URL`, `DB_USERNAME` e `DB_PASSWORD`.
 
-> Erro `Connection refused` ao subir = o perfil `mysql` está ativo, mas o MySQL não está rodando.
+> Erro `Connection refused` ao subir = o MySQL não está rodando. Erro `Defina a variável de ambiente JWT_SECRET` = falta a chave JWT.
+
+### Variáveis de ambiente
+
+| Variável | Para que serve | Padrão |
+|---|---|---|
+| `JWT_SECRET` | Chave dos tokens (mínimo 32 caracteres) | Obrigatória fora do H2 |
+| `ADMIN_EMAIL` / `ADMIN_SENHA` | Admin criado na primeira execução | `admin@tcg.com` / sem senha fora do H2 (o admin não é criado) |
+| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | Conexão com o MySQL | `localhost:3306`, `root` / `root` |
+| `CORS_ORIGENS` | Endereços do front que podem chamar a API, separados por vírgula | `http://localhost:*,http://127.0.0.1:*` |
+| `SPRING_MAIL_HOST`, `SPRING_MAIL_PORT`, `SPRING_MAIL_USERNAME`, `SPRING_MAIL_PASSWORD`, `MAIL_FROM` | SMTP para enviar o email de redefinição de senha | Sem SMTP, o email é escrito no log |
+| `JWT_EXPIRACAO_MS` | Validade do login | 24 h |
+| `AGENDADOR_INTERVALO_MS` | Intervalo das tarefas automáticas | 1 minuto |
 
 ## Contas de teste (H2)
 
@@ -36,9 +68,7 @@ A API sobe em `http://localhost:8080`, já com dados de teste. Os dados voltam a
 | `contato@cardhouse.com.br` | `123456` | Loja (id 1) |
 | `eric@email.com`, `samuel@email.com`, `vinicius@email.com`, `lucas@email.com` | `123456` | Jogadores (ids 2 a 5) |
 
-O torneio 1 já tem 4 inscritos confirmados, pronto para gerar a chave.
-
-No MySQL, só o admin funciona: as senhas das contas de exemplo do script são fictícias.
+O torneio 1 já tem 4 inscritos confirmados, pronto para gerar a chave. No MySQL, só o admin funciona: as senhas das contas de exemplo do script são fictícias.
 
 **H2 Console:** `http://localhost:8080/h2-console`, com JDBC URL `jdbc:h2:mem:tcg_torneios`, usuário `sa` e senha vazia.
 
@@ -52,7 +82,7 @@ No MySQL, só o admin funciona: as senhas das contas de exemplo do script são f
 
 | Rota | Filtros (`GET`) | Rotas extras | Quem pode alterar |
 |---|---|---|---|
-| `/auth` | | `POST /login`, `POST /registro/jogador`, `POST /registro/loja`, `GET /me` | Público |
+| `/auth` | | `POST /login`, `POST /registro/jogador`, `POST /registro/loja`, `GET /me`, `POST /logout`, `POST /esqueci-senha`, `POST /redefinir-senha` | Público (exceto `me` e `logout`) |
 | `/jogos`, `/formatos` | `ativo`, `jogoId` | | Admin |
 | `/lojas` | | `GET /slug/{slug}`, `GET /{id}/agenda`, `PUT /{id}/verificacao` (admin) | Dono da loja |
 | `/loja-membros` | `lojaId` | | Dono da loja |
@@ -62,7 +92,7 @@ No MySQL, só o admin funciona: as senhas das contas de exemplo do script são f
 | `/evento-participacoes` | `eventoId`, `jogadorId` | | Jogador ou equipe da loja |
 | `/torneios` | `lojaId`, `jogoId`, `status` | `PUT /{id}/status`, `POST` e `GET /{id}/chaveamento`, `GET /{id}/vagas` | Equipe da loja |
 | `/inscricoes` | `torneioId`, `jogadorId`, `status` | `PUT /{id}/check-in`, `PUT /{id}/cancelar` | Jogador ou equipe da loja |
-| `/rodadas`, `/partidas`, `/games` | `torneioId`, `rodadaId`, `partidaId` | `POST /partidas/{id}/resultado` | Equipe da loja |
+| `/rodadas`, `/partidas`, `/games` | `torneioId`, `rodadaId`, `partidaId` | `POST /partidas/{id}/resultado`, `POST /partidas/{id}/desempate` | Equipe da loja |
 | `/torneio-resultados` | `torneioId`, `jogadorId` | | Equipe da loja |
 | `/notificacoes` | só as suas | `GET /nao-lidas`, `GET /nao-lidas/total`, `PUT /{id}/lida`, `PUT /lidas` | O próprio usuário |
 | `/contas` | `tipo` | `PUT /{id}/senha`, `PUT /{id}/status` (admin) | O próprio usuário ou admin |
@@ -75,11 +105,20 @@ Excluir conta, torneio ou evento é *soft delete*: o registro fica no banco, mas
 ## Fluxo de um torneio
 
 1. **Criar:** `POST /torneios` (nasce em `RASCUNHO`). Depois, `PUT /torneios/{id}/status` com `INSCRICOES_ABERTAS`.
-2. **Inscrever:** os jogadores fazem `POST /inscricoes` com `{ "torneioId" }`. Quem passar das vagas vai para `LISTA_ESPERA`.
+2. **Inscrever:** os jogadores fazem `POST /inscricoes` com `{ "torneioId" }`. Quem passar das vagas vai para `LISTA_ESPERA` e sobe sozinho se alguém cancelar.
 3. **Check-in:** no dia, `PUT /inscricoes/{id}/check-in` muda a inscrição para `CONFIRMADO`.
-4. **Chave:** status `INSCRICOES_ENCERRADAS` e depois `POST /torneios/{id}/chaveamento`. O número de confirmados precisa ser igual ao de vagas.
-5. **Resultados:** `POST /partidas/{id}/resultado` com `{ "gamesA", "gamesB", "resultado" }`. O vencedor avança sozinho na chave.
-6. **Encerrar:** status `FINALIZADO` (a partir daí o torneio não pode mais ser editado) e `POST /torneio-resultados` para a classificação, que aparece em `GET /jogadores/{id}/trofeus`.
+4. **Chave:** com as inscrições encerradas (por `PUT /status` ou automaticamente no prazo), `POST /torneios/{id}/chaveamento` sorteia os confirmados.
+5. **Resultados:** `POST /partidas/{id}/resultado` com `{ "gamesA", "gamesB", "resultado" }` (os games podem vir de `/games`). Em caso de `EMPATE`, `POST /partidas/{id}/desempate` com `{ "vencedor": "A" }` ou `"B"`.
+6. **Fim:** o resultado da final finaliza o torneio e gera a classificação em `/torneio-resultados`. A loja só completa o prêmio, se quiser. Os troféus aparecem em `GET /jogadores/{id}/trofeus`.
+
+Status do torneio: `RASCUNHO` ⇄ `INSCRICOES_ABERTAS` ⇄ `INSCRICOES_ENCERRADAS` → `EM_ANDAMENTO` → `FINALIZADO`. Qualquer status antes do fim pode ir para `CANCELADO`.
+
+## Contas e segurança
+
+- **Esqueci minha senha:** `POST /auth/esqueci-senha` envia por email um código para `POST /auth/redefinir-senha`. O código vale 30 minutos e uma única vez. Sem SMTP configurado, o email aparece no log da aplicação.
+- **Tokens:** trocar a senha devolve um token novo e invalida os anteriores. `POST /auth/logout` encerra só o token atual.
+- **Limites:** 5 logins errados em 15 minutos bloqueiam o email (429). Os pedidos de "esqueci minha senha" também são limitados.
+- **Limitação:** a lista de logouts e a contagem de tentativas ficam na memória da aplicação. Reiniciar a aplicação as zera, e com mais de uma instância rodando, cada uma teria a sua.
 
 ## Erros
 
@@ -87,24 +126,25 @@ As respostas de erro vêm em JSON, com a mensagem no campo `detail`:
 
 | Status | Significado |
 |---|---|
-| 400 | Dados inválidos |
-| 401 | Sem token, token inválido ou login errado |
-| 403 | Sem permissão |
+| 400 | Dados inválidos, placar que não confere ou código inválido |
+| 401 | Sem token, token inválido/encerrado ou login errado |
+| 403 | Sem permissão ou conta desativada |
 | 404 | Não encontrado |
-| 409 | Conflito: registro duplicado, torneio finalizado, sem vagas ou regra barrada pelo banco |
+| 409 | Conflito: registro duplicado, torneio finalizado, sem vagas, mudança de status inválida ou regra barrada pelo banco |
+| 429 | Muitas tentativas seguidas |
 
 ## Estrutura
 
 ```
 src/main/java/senac/com/backendTCG
-├── config/       criação do admin e procedures do H2
+├── config/       criação do admin
 ├── controller/   rotas REST
 ├── dto/          corpos de requisição e resposta
 ├── entity/       tabelas do banco (+ enums)
 ├── exception/    tratamento de erros
 ├── repository/   acesso ao banco
-├── security/     JWT e permissões de rota
-└── service/      regras de negócio
+├── security/     JWT, logout, limite de tentativas e permissões de rota
+└── service/      regras de negócio, chaveamento, email de senha e agendador
 ```
 
 Perfis: `application-h2.properties` e `application-mysql.properties`. Os scripts do H2 ficam em `resources/h2/`.

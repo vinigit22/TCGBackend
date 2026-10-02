@@ -1,12 +1,11 @@
 package senac.com.backendTCG.service;
 
-import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import senac.com.backendTCG.dto.DesempateRequest;
 import senac.com.backendTCG.dto.PartidaRequest;
 import senac.com.backendTCG.dto.ResultadoPartidaRequest;
 import senac.com.backendTCG.entity.Inscricao;
@@ -15,7 +14,6 @@ import senac.com.backendTCG.entity.Rodada;
 import senac.com.backendTCG.entity.Torneio;
 import senac.com.backendTCG.entity.enums.ResultadoPartida;
 import senac.com.backendTCG.entity.enums.StatusPartida;
-import senac.com.backendTCG.entity.enums.TipoNotificacao;
 import senac.com.backendTCG.repository.PartidaRepository;
 
 import java.time.LocalDateTime;
@@ -29,9 +27,7 @@ public class PartidaService {
     private final RodadaService rodadaService;
     private final InscricaoService inscricaoService;
     private final TorneioService torneioService;
-    private final NotificacaoService notificacaoService;
-    private final JdbcTemplate jdbcTemplate;
-    private final EntityManager entityManager;
+    private final ChaveamentoService chaveamentoService;
 
     public List<Partida> listar(Long rodadaId, Long torneioId) {
         if (rodadaId != null) {
@@ -85,45 +81,23 @@ public class PartidaService {
         return partidaRepository.save(partida);
     }
 
-    // Chama a procedure sp_registrar_resultado: grava o placar, define o vencedor,
-    // marca NO_SHOW em caso de W.O. e avanca o vencedor para a proxima partida da chave
+    // Grava o placar e o vencedor, marca NO_SHOW em caso de W.O. e avanca o vencedor na chave.
+    // Empate deixa a partida aguardando o desempate. A final encerra o torneio e gera a classificacao.
     @Transactional
     public Partida registrarResultado(Long id, ResultadoPartidaRequest request) {
         Partida partida = buscarPorId(id);
         torneioService.verificarPodeGerenciar(partida.getRodada().getTorneio());
 
-        if (partida.getInscricaoA() == null || partida.getInscricaoB() == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT, "A partida ainda não tem os dois jogadores definidos");
-        }
+        chaveamentoService.registrarResultado(partida, request);
+        return partida;
+    }
 
-        // Registrar de novo avancaria outro vencedor e bagunçaria a chave ja montada
-        if (partida.getStatus() == StatusPartida.FINALIZADA) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "O resultado desta partida já foi registrado. Para corrigir, use PUT /partidas/{id}.");
-        }
+    @Transactional
+    public Partida registrarDesempate(Long id, DesempateRequest request) {
+        Partida partida = buscarPorId(id);
+        torneioService.verificarPodeGerenciar(partida.getRodada().getTorneio());
 
-        jdbcTemplate.update("CALL sp_registrar_resultado(?, ?, ?, ?, ?)",
-                id,
-                request.gamesA(),
-                request.gamesB(),
-                request.gamesEmpate() == null ? 0 : request.gamesEmpate(),
-                request.resultado().name());
-
-        // A procedure alterou o banco por fora do JPA: recarrega o que sera devolvido
-        entityManager.refresh(partida.getInscricaoA());
-        entityManager.refresh(partida.getInscricaoB());
-        entityManager.refresh(partida);
-
-        String mensagem = "O resultado da sua partida na mesa " + partida.getMesa()
-                + " (" + partida.getRodada().getNome() + ") foi registrado: " + partida.getResultado() + ".";
-
-        for (Inscricao inscricao : List.of(partida.getInscricaoA(), partida.getInscricaoB())) {
-            notificacaoService.notificar(inscricao.getJogador().getConta(), TipoNotificacao.RESULTADO_REGISTRADO,
-                    "Resultado registrado", mensagem,
-                    partida.getRodada().getTorneio().getId(), null, partida.getId());
-        }
-
+        chaveamentoService.registrarDesempate(partida, request.vencedor());
         return partida;
     }
 

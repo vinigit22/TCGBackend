@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import senac.com.backendTCG.dto.AlterarSenhaRequest;
+import senac.com.backendTCG.dto.LoginResponse;
 import senac.com.backendTCG.dto.StatusContaRequest;
 import senac.com.backendTCG.entity.Conta;
 import senac.com.backendTCG.entity.enums.TipoConta;
@@ -30,9 +31,10 @@ public class ContaController {
         return ResponseEntity.ok(contaService.consultar(id));
     }
 
+    // Devolve um token novo: os tokens antigos deixam de valer
     @PutMapping("/{id}/senha")
-    public ResponseEntity<Conta> alterarSenha(@PathVariable Long id,
-                                              @Valid @RequestBody AlterarSenhaRequest request) {
+    public ResponseEntity<LoginResponse> alterarSenha(@PathVariable Long id,
+                                                      @Valid @RequestBody AlterarSenhaRequest request) {
         return ResponseEntity.ok(contaService.alterarSenha(id, request));
     }
 

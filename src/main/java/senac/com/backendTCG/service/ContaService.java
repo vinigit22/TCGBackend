@@ -7,9 +7,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import senac.com.backendTCG.dto.AlterarSenhaRequest;
+import senac.com.backendTCG.dto.LoginResponse;
 import senac.com.backendTCG.entity.Conta;
 import senac.com.backendTCG.entity.enums.TipoConta;
 import senac.com.backendTCG.repository.ContaRepository;
+import senac.com.backendTCG.security.JwtUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,6 +24,7 @@ public class ContaService {
     private final ContaRepository contaRepository;
     private final PasswordEncoder passwordEncoder;
     private final PermissaoService permissaoService;
+    private final JwtUtils jwtUtils;
 
     public List<Conta> listarTodos(TipoConta tipo) {
         permissaoService.verificarAdmin();
@@ -57,20 +60,16 @@ public class ContaService {
         return contaRepository.save(conta);
     }
 
+    // Devolve um token novo: os tokens emitidos com a senha antiga deixam de valer
     @Transactional
-    public Conta alterarSenha(Long id, AlterarSenhaRequest request) {
-        Conta conta = permissaoService.contaLogada();
-
-        if (!conta.getId().equals(id)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Só é possível alterar a própria senha");
-        }
-
-        if (!passwordEncoder.matches(request.senhaAtual(), conta.getSenhaHash())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Senha atual incorreta");
-        }
+    public LoginResponse alterarSenha(Long id, AlterarSenhaRequest request) {
+        Conta conta = verificarPropriaConta(id);
+        verificarSenhaAtual(conta, request.senhaAtual());
 
         conta.setSenhaHash(passwordEncoder.encode(request.novaSenha()));
-        return contaRepository.save(conta);
+        contaRepository.save(conta);
+
+        return LoginResponse.de(conta, jwtUtils.gerarTokenAcesso(conta));
     }
 
     @Transactional
@@ -117,5 +116,21 @@ public class ContaService {
 
     public static String normalizarEmail(String email) {
         return email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private Conta verificarPropriaConta(Long id) {
+        Conta conta = permissaoService.contaLogada();
+
+        if (!conta.getId().equals(id)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Só é possível alterar a própria conta");
+        }
+
+        return conta;
+    }
+
+    private void verificarSenhaAtual(Conta conta, String senhaAtual) {
+        if (!passwordEncoder.matches(senhaAtual, conta.getSenhaHash())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Senha atual incorreta");
+        }
     }
 }

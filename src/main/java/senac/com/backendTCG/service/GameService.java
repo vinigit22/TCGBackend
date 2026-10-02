@@ -12,6 +12,8 @@ import senac.com.backendTCG.repository.GameRepository;
 
 import java.util.List;
 
+// Cada game atualiza o placar (gamesA / gamesB / gamesEmpate) da partida.
+// Depois que o resultado da partida e registrado, os games nao mudam mais.
 @Service
 @RequiredArgsConstructor
 public class GameService {
@@ -19,6 +21,7 @@ public class GameService {
     private final GameRepository gameRepository;
     private final PartidaService partidaService;
     private final TorneioService torneioService;
+    private final ChaveamentoService chaveamentoService;
 
     public List<Game> listar(Long partidaId) {
         return partidaId == null
@@ -38,7 +41,7 @@ public class GameService {
         }
 
         Partida partida = partidaService.buscarPorId(request.partidaId());
-        torneioService.verificarPodeGerenciar(partida.getRodada().getTorneio());
+        verificarPodeAlterar(partida);
 
         if (gameRepository.existsByPartida_IdAndNumero(partida.getId(), request.numero())) {
             throw new ResponseStatusException(
@@ -50,14 +53,16 @@ public class GameService {
         game.setNumero(request.numero());
         game.setResultado(request.resultado());
         game.setDuracaoMin(request.duracaoMin());
+        gameRepository.save(game);
 
-        return gameRepository.save(game);
+        chaveamentoService.atualizarPlacarPelosGames(partida);
+        return game;
     }
 
     @Transactional
     public Game atualizar(Long id, GameRequest request) {
         Game game = buscarPorId(id);
-        torneioService.verificarPodeGerenciar(game.getPartida().getRodada().getTorneio());
+        verificarPodeAlterar(game.getPartida());
 
         if (gameRepository.existsByPartida_IdAndNumeroAndIdNot(game.getPartida().getId(), request.numero(), id)) {
             throw new ResponseStatusException(
@@ -67,14 +72,30 @@ public class GameService {
         game.setNumero(request.numero());
         game.setResultado(request.resultado());
         game.setDuracaoMin(request.duracaoMin());
+        gameRepository.save(game);
 
-        return gameRepository.save(game);
+        chaveamentoService.atualizarPlacarPelosGames(game.getPartida());
+        return game;
     }
 
     @Transactional
     public void deletar(Long id) {
         Game game = buscarPorId(id);
-        torneioService.verificarPodeGerenciar(game.getPartida().getRodada().getTorneio());
+        Partida partida = game.getPartida();
+        verificarPodeAlterar(partida);
+
         gameRepository.delete(game);
+
+        if (!chaveamentoService.atualizarPlacarPelosGames(partida)) {
+            // Era o ultimo game: zera o placar
+            partida.setGamesA(0);
+            partida.setGamesB(0);
+            partida.setGamesEmpate(0);
+        }
+    }
+
+    private void verificarPodeAlterar(Partida partida) {
+        torneioService.verificarPodeGerenciar(partida.getRodada().getTorneio());
+        chaveamentoService.verificarPartidaEmJogo(partida);
     }
 }

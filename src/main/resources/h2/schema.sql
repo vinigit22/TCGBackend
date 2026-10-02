@@ -1,13 +1,8 @@
 -- =====================================================================
 -- Perfil "h2" (TEMPORARIO, para testes)
 -- Roda depois que o Hibernate cria as tabelas a partir das entidades.
--- Recria as views e as procedures do TorneioTCG_SQL.sql no H2.
+-- Recria no H2 as views do TorneioTCG_SQL.sql (as procedures nao sao mais usadas pela API).
 -- =====================================================================
-
--- O H2 nao executa procedures em SQL: estes nomes apontam para os metodos Java
--- equivalentes em senac.com.backendTCG.config.h2.H2Procedures
-CREATE ALIAS IF NOT EXISTS sp_gerar_chaveamento FOR 'senac.com.backendTCG.config.h2.H2Procedures.gerarChaveamento';
-CREATE ALIAS IF NOT EXISTS sp_registrar_resultado FOR 'senac.com.backendTCG.config.h2.H2Procedures.registrarResultado';
 
 -- Pagina de trofeus do jogador
 CREATE OR REPLACE VIEW vw_trofeus AS

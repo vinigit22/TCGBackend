@@ -1,5 +1,6 @@
 package senac.com.backendTCG.security;
 
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
@@ -21,6 +23,7 @@ public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtUtils jwtUtils;
     private final CustomUserDetailsService userDetailsService;
+    private final TokensRevogados tokensRevogados;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -34,17 +37,19 @@ public class JwtFilter extends OncePerRequestFilter {
             return;
         }
 
-        String token = authHeader.substring(7);
+        // Token invalido, expirado, de outra finalidade ou encerrado por logout: segue como anonimo
+        // (as rotas protegidas respondem 401)
+        Optional<Claims> claims = jwtUtils.ler(authHeader.substring(7), JwtUtils.Finalidade.ACESSO);
 
-        // Token invalido ou expirado: segue como anonimo (rotas protegidas respondem 401)
-        if (jwtUtils.validateToken(token)
+        if (claims.isPresent()
+                && !tokensRevogados.estaRevogado(claims.get().getId())
                 && SecurityContextHolder.getContext().getAuthentication() == null) {
 
             try {
-                UserDetails userDetails =
-                        userDetailsService.loadUserByUsername(jwtUtils.getEmailFromToken(token));
+                UserDetails userDetails = userDetailsService.loadUserByUsername(claims.get().getSubject());
 
-                if (userDetails.isEnabled()) {
+                // Conta ativa e senha igual a da emissao do token (trocar a senha encerra as sessoes antigas)
+                if (userDetails.isEnabled() && jwtUtils.senhaConfere(claims.get(), userDetails.getPassword())) {
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(
                                     userDetails, null, userDetails.getAuthorities());
