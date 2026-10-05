@@ -3,6 +3,7 @@ package senac.com.backendTCG.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Formula;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 import senac.com.backendTCG.entity.enums.StatusTorneio;
@@ -63,9 +64,15 @@ public class Torneio {
     @Column(name = "data_inicio", nullable = false)
     private LocalDateTime dataInicio;
 
-    // Preenchido pela procedure sp_gerar_chaveamento
+    // Preenchido ao gerar a chave (ChaveamentoService). Quando existe, a chave foi gerada automaticamente
+    // e rodadas/partidas nao aceitam mudancas estruturais manuais.
     @Column(name = "total_rodadas")
     private Integer totalRodadas;
+
+    // Vagas ocupadas (INSCRITO ou CONFIRMADO), calculadas na mesma consulta que carrega o torneio.
+    // Nulo em um torneio recem-criado, que ainda nao foi lido do banco.
+    @Formula("(select count(*) from inscricao i where i.torneio_id = id and i.status in ('INSCRITO', 'CONFIRMADO'))")
+    private Long vagasOcupadas;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
@@ -82,6 +89,12 @@ public class Torneio {
 
     @Column(name = "deletado_em")
     private LocalDateTime deletadoEm;
+
+    // Sai no JSON como "vagasDisponiveis": evita uma chamada a /torneios/{id}/vagas por torneio na listagem
+    public int getVagasDisponiveis() {
+        long ocupadas = vagasOcupadas == null ? 0 : vagasOcupadas;
+        return (int) Math.max(vagasMax - ocupadas, 0);
+    }
 
     @PrePersist
     void prePersist() {

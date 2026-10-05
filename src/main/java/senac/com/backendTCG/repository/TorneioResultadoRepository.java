@@ -11,9 +11,11 @@ import java.util.List;
 @Repository
 public interface TorneioResultadoRepository extends JpaRepository<TorneioResultado, Long> {
 
+    // Resultados de torneio excluido (soft delete) ficam de fora
     @Query("""
             select r from TorneioResultado r
-            where (:torneioId is null or r.torneio.id = :torneioId)
+            where r.torneio.deletadoEm is null
+              and (:torneioId is null or r.torneio.id = :torneioId)
               and (:jogadorId is null or r.jogador.contaId = :jogadorId)
             order by r.torneio.id, r.colocacao
             """)

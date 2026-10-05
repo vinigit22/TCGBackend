@@ -23,14 +23,20 @@ public class GameService {
     private final TorneioService torneioService;
     private final ChaveamentoService chaveamentoService;
 
+    // Games de torneio excluido (soft delete) ficam de fora
     public List<Game> listar(Long partidaId) {
-        return partidaId == null
+        List<Game> games = partidaId == null
                 ? gameRepository.findAll()
                 : gameRepository.findByPartida_IdOrderByNumeroAsc(partidaId);
+
+        return games.stream()
+                .filter(game -> game.getPartida().getRodada().getTorneio().getDeletadoEm() == null)
+                .toList();
     }
 
     public Game buscarPorId(Long id) {
         return gameRepository.findById(id)
+                .filter(game -> game.getPartida().getRodada().getTorneio().getDeletadoEm() == null)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Game não encontrado"));
     }
 

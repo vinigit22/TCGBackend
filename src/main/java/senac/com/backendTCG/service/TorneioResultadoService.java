@@ -29,6 +29,7 @@ public class TorneioResultadoService {
 
     public TorneioResultado buscarPorId(Long id) {
         return torneioResultadoRepository.findById(id)
+                .filter(resultado -> resultado.getTorneio().getDeletadoEm() == null)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Resultado não encontrado"));
     }
 

@@ -14,7 +14,6 @@ import senac.com.backendTCG.entity.Formato;
 import senac.com.backendTCG.entity.Jogo;
 import senac.com.backendTCG.entity.Torneio;
 import senac.com.backendTCG.entity.UsuarioLoja;
-import senac.com.backendTCG.entity.enums.StatusInscricao;
 import senac.com.backendTCG.entity.enums.StatusTorneio;
 import senac.com.backendTCG.entity.enums.TipoNotificacao;
 import senac.com.backendTCG.repository.InscricaoRepository;
@@ -53,10 +52,15 @@ public class TorneioService {
     private final PermissaoService permissaoService;
     private final NotificacaoService notificacaoService;
     private final ChaveamentoService chaveamentoService;
+    private final ListaEsperaService listaEsperaService;
     private final JdbcTemplate jdbcTemplate;
 
-    public List<Torneio> listar(Long lojaId, Integer jogoId, StatusTorneio status) {
-        return torneioRepository.filtrar(lojaId, jogoId, status);
+    // status vazio = todos os status
+    public List<Torneio> listar(Long lojaId, Integer jogoId, List<StatusTorneio> status) {
+        List<StatusTorneio> filtroStatus = status == null || status.isEmpty()
+                ? List.of(StatusTorneio.values())
+                : status;
+        return torneioRepository.filtrar(lojaId, jogoId, filtroStatus);
     }
 
     public Torneio buscarPorId(Long id) {
@@ -85,8 +89,7 @@ public class TorneioService {
         Torneio torneio = buscarPorId(id);
         verificarPodeGerenciar(torneio);
 
-        long ocupadas = inscricaoRepository.countByTorneio_IdAndStatusIn(
-                id, List.of(StatusInscricao.INSCRITO, StatusInscricao.CONFIRMADO));
+        long ocupadas = inscricaoRepository.countByTorneio_IdAndStatusIn(id, ListaEsperaService.OCUPAM_VAGA);
 
         if (request.vagasMax() < ocupadas) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
@@ -94,7 +97,11 @@ public class TorneioService {
         }
 
         preencher(torneio, request);
-        return torneioRepository.save(torneio);
+        Torneio salvo = torneioRepository.save(torneio);
+
+        // Se as vagas aumentaram, quem estava na lista de espera sobe
+        listaEsperaService.promover(salvo);
+        return salvo;
     }
 
     @Transactional
@@ -172,6 +179,20 @@ public class TorneioService {
     public void verificarPodeGerenciar(Torneio torneio) {
         permissaoService.verificarEquipeLoja(torneio.getLoja().getContaId());
         verificarEditavel(torneio);
+    }
+
+    // Chave gerada automaticamente: criar, apagar ou religar rodadas/partidas a mao quebraria o avanco
+    // dos vencedores. Resultados mudam por /partidas/{id}/resultado, /desempate e /reabrir.
+    public void verificarChaveManual(Torneio torneio) {
+        if (torneio.getTotalRodadas() != null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "A chave deste torneio foi gerada automaticamente e não aceita esta alteração manual. "
+                            + "Para corrigir um resultado, use POST /partidas/{id}/reabrir.");
+        }
+    }
+
+    public boolean temChaveAutomatica(Torneio torneio) {
+        return torneio.getTotalRodadas() != null;
     }
 
     // Mesma regra das triggers trg_torneio_bloqueia_update / trg_torneio_bloqueia_delete

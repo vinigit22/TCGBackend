@@ -31,6 +31,7 @@ public class EventoParticipacaoService {
 
     public EventoParticipacao buscarPorId(Long id) {
         return eventoParticipacaoRepository.findById(id)
+                .filter(participacao -> participacao.getEvento().getDeletadoEm() == null)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Participação não encontrada"));
     }
 

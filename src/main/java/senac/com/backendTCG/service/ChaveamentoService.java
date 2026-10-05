@@ -44,6 +44,7 @@ import java.util.Map;
 public class ChaveamentoService {
 
     private static final String OBSERVACAO_BYE = "Avançou sem adversário (bye)";
+    private static final int MAXIMO_GAMES = 5;
 
     private final PartidaRepository partidaRepository;
     private final RodadaRepository rodadaRepository;
@@ -86,8 +87,12 @@ public class ChaveamentoService {
         torneio.setStatus(StatusTorneio.EM_ANDAMENTO);
         torneio.setTotalRodadas(totalRodadas);
 
-        notificacaoService.notificarInscritosTorneio(torneio, TipoNotificacao.PAREAMENTO, "Chave sorteada",
-                "A chave do torneio '" + torneio.getTitulo() + "' foi sorteada. Confira seu adversário!");
+        // So quem esta na chave (CONFIRMADO) e avisado: quem nao fez check-in ficou de fora
+        for (Inscricao inscricao : confirmados) {
+            notificacaoService.notificar(inscricao.getJogador().getConta(), TipoNotificacao.PAREAMENTO, "Chave sorteada",
+                    "A chave do torneio '" + torneio.getTitulo() + "' foi sorteada. Confira seu adversário!",
+                    torneio.getId(), null, null);
+        }
 
         // Quem ficou sem adversario ja avanca
         for (Partida partida : chave.get(0)) {
@@ -188,6 +193,12 @@ public class ChaveamentoService {
         }
         validarPlacar(partida, resultado);
 
+        // Sem esta regra o torneio terminaria sem campeao e com dois 2os lugares
+        if (resultado == ResultadoPartida.DUPLO_NO_SHOW && partida.getProximaPartidaId() == null
+                && ehFinalDaChave(partida.getRodada(), partida.getRodada().getTorneio())) {
+            throw conflito("A final precisa de um vencedor. Registre W.O. (WO_A ou WO_B) para quem compareceu.");
+        }
+
         if (resultado == ResultadoPartida.EMPATE) {
             // A chave precisa de um vencedor: a partida fica aguardando o desempate
             partida.setResultado(ResultadoPartida.EMPATE);
@@ -212,7 +223,8 @@ public class ChaveamentoService {
         notificarResultado(partida);
     }
 
-    // Decide uma partida empatada. Se a partida usa games, o desempate vira o proximo game.
+    // Decide uma partida empatada. Se a partida usa games, o desempate vira o proximo game; se ela ja tem
+    // os 5 games (ex.: 2 x 2 com um game empatado), o ponto do desempate entra direto no placar.
     public void registrarDesempate(Partida partida, SlotPartida vencedor) {
         verificarPartidaEmJogo(partida);
 
@@ -221,21 +233,18 @@ public class ChaveamentoService {
         }
 
         List<Game> games = gameRepository.findByPartida_IdOrderByNumeroAsc(partida.getId());
-        if (games.isEmpty()) {
+        int proximoNumero = games.isEmpty() ? 1 : games.get(games.size() - 1).getNumero() + 1;
+
+        if (games.isEmpty() || proximoNumero > MAXIMO_GAMES) {
             if (vencedor == SlotPartida.A) {
                 partida.setGamesA(partida.getGamesA() + 1);
             } else {
                 partida.setGamesB(partida.getGamesB() + 1);
             }
         } else {
-            int numero = games.get(games.size() - 1).getNumero() + 1;
-            if (numero > 5) {
-                throw conflito("A partida já tem 5 games registrados.");
-            }
-
             Game desempate = new Game();
             desempate.setPartida(partida);
-            desempate.setNumero(numero);
+            desempate.setNumero(proximoNumero);
             desempate.setResultado(vencedor == SlotPartida.A ? ResultadoGame.A : ResultadoGame.B);
             gameRepository.save(desempate);
             atualizarPlacarPelosGames(partida);
@@ -247,6 +256,71 @@ public class ChaveamentoService {
                 venceuA ? partida.getInscricaoA() : partida.getInscricaoB(),
                 "Decidida no desempate");
         notificarResultado(partida);
+    }
+
+    // Desfaz o resultado de uma partida finalizada para que ele seja corrigido: tira o vencedor da partida
+    // seguinte, desfaz o NO_SHOW do W.O. e reabre a rodada. So vale enquanto a partida seguinte nao comecou;
+    // a final nao chega aqui porque o torneio FINALIZADO ja nao pode ser alterado.
+    public void reabrir(Partida partida) {
+        if (partida.getStatus() != StatusPartida.FINALIZADA) {
+            throw conflito("Só partidas finalizadas podem ser reabertas.");
+        }
+        if (partida.getInscricaoA() == null || partida.getInscricaoB() == null) {
+            throw conflito("Esta partida foi decidida sem adversário (bye) e não tem resultado para corrigir.");
+        }
+
+        Rodada rodada = partida.getRodada();
+
+        if (partida.getProximaPartidaId() != null) {
+            Partida proxima = buscarProxima(partida);
+            boolean proximaComecou = proxima.getStatus() == StatusPartida.EM_ANDAMENTO
+                    || proxima.getStatus() == StatusPartida.FINALIZADA
+                    || !gameRepository.findByPartida_IdOrderByNumeroAsc(proxima.getId()).isEmpty();
+            if (proximaComecou) {
+                throw conflito("A partida seguinte (mesa " + proxima.getMesa() + " da " + proxima.getRodada().getNome()
+                        + ") já começou. Reabra aquela partida primeiro.");
+            }
+
+            if (partida.getProximoSlot() == SlotPartida.A) {
+                proxima.setInscricaoA(null);
+            } else {
+                proxima.setInscricaoB(null);
+            }
+            proxima.setStatus(StatusPartida.AGUARDANDO);
+        }
+
+        ResultadoPartida anterior = partida.getResultado();
+        if (anterior == ResultadoPartida.WO_A || anterior == ResultadoPartida.DUPLO_NO_SHOW) {
+            desfazerNoShow(partida.getInscricaoB());
+        }
+        if (anterior == ResultadoPartida.WO_B || anterior == ResultadoPartida.DUPLO_NO_SHOW) {
+            desfazerNoShow(partida.getInscricaoA());
+        }
+
+        partida.setResultado(null);
+        partida.setVencedor(null);
+        partida.setFinalizadaEm(null);
+        partida.setStatus(StatusPartida.EM_ANDAMENTO);
+        if (partida.getIniciadaEm() == null) {
+            partida.setIniciadaEm(LocalDateTime.now());
+        }
+
+        // A rodada volta a ficar em andamento e a seguinte volta a aguardar
+        if (rodada.getStatus() == StatusRodada.ENCERRADA) {
+            rodada.setStatus(StatusRodada.EM_ANDAMENTO);
+            rodada.setEncerradaEm(null);
+
+            rodadaRepository.findByTorneio_IdAndNumero(rodada.getTorneio().getId(), rodada.getNumero() + 1)
+                    .filter(seguinte -> seguinte.getStatus() == StatusRodada.EM_ANDAMENTO)
+                    .ifPresent(seguinte -> {
+                        seguinte.setStatus(StatusRodada.AGUARDANDO);
+                        seguinte.setIniciadaEm(null);
+                    });
+        }
+
+        notificarJogadores(partida, TipoNotificacao.RESULTADO_REGISTRADO, "Resultado em revisão",
+                "O resultado da sua partida da " + rodada.getNome() + " (mesa " + partida.getMesa()
+                        + ") foi reaberto pela loja para correção.");
     }
 
     // Recalcula o placar da partida a partir dos games cadastrados. Devolve false se nao houver games.
@@ -269,7 +343,7 @@ public class ChaveamentoService {
 
     public void verificarPartidaEmJogo(Partida partida) {
         if (partida.getStatus() == StatusPartida.FINALIZADA) {
-            throw conflito("O resultado desta partida já foi registrado. Para corrigir, use PUT /partidas/{id}.");
+            throw conflito("O resultado desta partida já foi registrado. Para corrigir, use POST /partidas/{id}/reabrir.");
         }
         if (partida.getInscricaoA() == null || partida.getInscricaoB() == null) {
             throw conflito("A partida ainda não tem os dois jogadores definidos.");
@@ -310,7 +384,7 @@ public class ChaveamentoService {
     }
 
     private void avancar(Partida partida) {
-        Partida proxima = partidaRepository.findById(partida.getProximaPartidaId()).orElseThrow();
+        Partida proxima = buscarProxima(partida);
 
         if (partida.getVencedor() != null) {
             if (partida.getProximoSlot() == SlotPartida.A) {
@@ -466,6 +540,19 @@ public class ChaveamentoService {
         if (inscricao != null) {
             inscricao.setStatus(StatusInscricao.NO_SHOW);
         }
+    }
+
+    // Quem esta na chave fez check-in: ao desfazer o W.O. volta a CONFIRMADO
+    private void desfazerNoShow(Inscricao inscricao) {
+        if (inscricao != null && inscricao.getStatus() == StatusInscricao.NO_SHOW) {
+            inscricao.setStatus(StatusInscricao.CONFIRMADO);
+        }
+    }
+
+    private Partida buscarProxima(Partida partida) {
+        return partidaRepository.findById(partida.getProximaPartidaId())
+                .orElseThrow(() -> conflito("A partida seguinte desta chave (id " + partida.getProximaPartidaId()
+                        + ") não existe mais. Ajuste a ligação da partida " + partida.getId() + " em PUT /partidas/{id}."));
     }
 
     private List<Inscricao> jogadoresDa(Partida partida) {

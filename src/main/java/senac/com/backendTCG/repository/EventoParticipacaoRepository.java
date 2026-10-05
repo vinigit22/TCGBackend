@@ -13,9 +13,11 @@ import java.util.Optional;
 @Repository
 public interface EventoParticipacaoRepository extends JpaRepository<EventoParticipacao, Long> {
 
+    // Participacoes de evento excluido (soft delete) ficam de fora
     @Query("""
             select p from EventoParticipacao p
-            where (:eventoId is null or p.evento.id = :eventoId)
+            where p.evento.deletadoEm is null
+              and (:eventoId is null or p.evento.id = :eventoId)
               and (:jogadorId is null or p.jogador.contaId = :jogadorId)
             order by p.inscritoEm
             """)

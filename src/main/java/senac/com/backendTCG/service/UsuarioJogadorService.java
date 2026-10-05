@@ -6,7 +6,9 @@ import org.springframework.jdbc.core.DataClassRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+import senac.com.backendTCG.dto.PerfilJogadorResponse;
 import senac.com.backendTCG.dto.RegistroJogadorRequest;
 import senac.com.backendTCG.dto.TrofeusResponse;
 import senac.com.backendTCG.dto.UsuarioJogadorRequest;
@@ -25,6 +27,7 @@ public class UsuarioJogadorService {
     private final UsuarioJogadorRepository usuarioJogadorRepository;
     private final ContaService contaService;
     private final PermissaoService permissaoService;
+    private final ArmazenamentoImagemService armazenamentoImagemService;
     private final JdbcTemplate jdbcTemplate;
 
     public List<UsuarioJogador> listarTodos() {
@@ -40,6 +43,31 @@ public class UsuarioJogadorService {
     public UsuarioJogador buscarPorNickname(String nickname) {
         return usuarioJogadorRepository.findByNicknameAndConta_DeletadoEmIsNull(nickname)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Jogador não encontrado"));
+    }
+
+    // Perfil completo da conta logada (o app mobile e so para jogadores)
+    public PerfilJogadorResponse meuPerfil() {
+        Conta conta = permissaoService.contaLogada();
+
+        if (conta.getTipo() != TipoConta.JOGADOR) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Esta conta não é de jogador");
+        }
+
+        return PerfilJogadorResponse.de(buscarPorId(conta.getId()));
+    }
+
+    // Troca a foto de perfil pelo arquivo enviado e apaga a anterior, se ela tambem tiver sido enviada
+    @Transactional
+    public UsuarioJogador atualizarImagem(Long id, MultipartFile arquivo) {
+        permissaoService.verificarContaOuAdmin(id);
+        UsuarioJogador jogador = buscarPorId(id);
+
+        String anterior = jogador.getImagemPerfil();
+        jogador.setImagemPerfil(armazenamentoImagemService.salvar(arquivo, "jogadores"));
+        UsuarioJogador salvo = usuarioJogadorRepository.save(jogador);
+
+        armazenamentoImagemService.removerSeLocal(anterior);
+        return salvo;
     }
 
     // Cria a conta (tipo JOGADOR) e o perfil na mesma transacao

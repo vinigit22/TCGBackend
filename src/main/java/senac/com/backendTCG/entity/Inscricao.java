@@ -36,7 +36,7 @@ public class Inscricao {
     @Column(name = "pagamento_status", nullable = false)
     private StatusPagamento pagamentoStatus = StatusPagamento.PENDENTE;
 
-    // Posicao sorteada na chave (sp_gerar_chaveamento)
+    // Posicao sorteada na chave (ChaveamentoService)
     @Column(name = "seed")
     private Integer seed;
 

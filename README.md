@@ -46,6 +46,8 @@ A API sobe em `http://localhost:8080`, já com dados de teste. Os dados voltam a
    ./mvnw spring-boot:run -Dspring-boot.run.profiles=mysql
    ```
 
+> O perfil `mysql` só roda com esse script, que precisa entrar no repositório. Ao atualizá-lo, a view `vw_trofeus` deve ignorar torneios excluídos (`deletado_em`), como a versão do H2 em `resources/h2/schema.sql`.
+
 > Erro `Connection refused` ao subir = o MySQL não está rodando. Erro `Defina a variável de ambiente JWT_SECRET` = falta a chave JWT.
 
 ### Variáveis de ambiente
@@ -59,6 +61,7 @@ A API sobe em `http://localhost:8080`, já com dados de teste. Os dados voltam a
 | `SPRING_MAIL_HOST`, `SPRING_MAIL_PORT`, `SPRING_MAIL_USERNAME`, `SPRING_MAIL_PASSWORD`, `MAIL_FROM` | SMTP para enviar o email de redefinição de senha | Sem SMTP, o email é escrito no log |
 | `JWT_EXPIRACAO_MS` | Validade do login | 24 h |
 | `AGENDADOR_INTERVALO_MS` | Intervalo das tarefas automáticas | 1 minuto |
+| `UPLOAD_DIR` | Pasta das imagens enviadas (foto de perfil), relativa à pasta em que a API é iniciada | `uploads` |
 
 ## Contas de teste (H2)
 
@@ -74,7 +77,7 @@ O torneio 1 já tem 4 inscritos confirmados, pronto para gerar a chave. No MySQL
 
 ## Endpoints
 
-- **Consultas (`GET`):** públicas.
+- **Consultas (`GET`):** públicas, menos `/inscricoes` (o próprio jogador, a equipe da loja ou um admin), `/notificacoes`, `/contas`, `/loja-membros`, `/administradores` e `/jogadores/me`, que exigem token.
 - **Criar, editar e excluir:** exigem o header `Authorization: Bearer <token>`. O token vem de `POST /auth/login`.
 - **Rotas padrão:** todos os recursos têm `GET /recurso`, `GET /recurso/{id}`, `POST`, `PUT /{id}` e `DELETE /{id}`.
 - **Corpo das requisições:** os campos estão nos records de `dto/`.
@@ -86,13 +89,13 @@ O torneio 1 já tem 4 inscritos confirmados, pronto para gerar a chave. No MySQL
 | `/jogos`, `/formatos` | `ativo`, `jogoId` | | Admin |
 | `/lojas` | | `GET /slug/{slug}`, `GET /{id}/agenda`, `PUT /{id}/verificacao` (admin) | Dono da loja |
 | `/loja-membros` | `lojaId` | | Dono da loja |
-| `/jogadores` | | `GET /nickname/{nick}`, `GET /{id}/trofeus` | O próprio jogador |
+| `/jogadores` | | `GET /me`, `GET /nickname/{nick}`, `GET /{id}/trofeus`, `POST /{id}/imagem` | O próprio jogador |
 | `/enderecos` | | | Lojas e admin |
 | `/eventos` | `lojaId`, `status` | | Equipe da loja |
 | `/evento-participacoes` | `eventoId`, `jogadorId` | | Jogador ou equipe da loja |
-| `/torneios` | `lojaId`, `jogoId`, `status` | `PUT /{id}/status`, `POST` e `GET /{id}/chaveamento`, `GET /{id}/vagas` | Equipe da loja |
-| `/inscricoes` | `torneioId`, `jogadorId`, `status` | `PUT /{id}/check-in`, `PUT /{id}/cancelar` | Jogador ou equipe da loja |
-| `/rodadas`, `/partidas`, `/games` | `torneioId`, `rodadaId`, `partidaId` | `POST /partidas/{id}/resultado`, `POST /partidas/{id}/desempate` | Equipe da loja |
+| `/torneios` | `lojaId`, `jogoId`, `status` (aceita vários: `?status=A,B`) | `PUT /{id}/status`, `POST` e `GET /{id}/chaveamento`, `GET /{id}/vagas` | Equipe da loja |
+| `/inscricoes` | `jogadorId` (as suas) ou `torneioId` (equipe da loja), `status` | `PUT /{id}/check-in`, `PUT /{id}/cancelar` | Jogador ou equipe da loja |
+| `/rodadas`, `/partidas`, `/games` | `torneioId`, `rodadaId`, `partidaId` | `POST /partidas/{id}/resultado`, `POST /partidas/{id}/desempate`, `POST /partidas/{id}/reabrir` | Equipe da loja |
 | `/torneio-resultados` | `torneioId`, `jogadorId` | | Equipe da loja |
 | `/notificacoes` | só as suas | `GET /nao-lidas`, `GET /nao-lidas/total`, `PUT /{id}/lida`, `PUT /lidas` | O próprio usuário |
 | `/contas` | `tipo` | `PUT /{id}/senha`, `PUT /{id}/status` (admin) | O próprio usuário ou admin |
@@ -105,20 +108,34 @@ Excluir conta, torneio ou evento é *soft delete*: o registro fica no banco, mas
 ## Fluxo de um torneio
 
 1. **Criar:** `POST /torneios` (nasce em `RASCUNHO`). Depois, `PUT /torneios/{id}/status` com `INSCRICOES_ABERTAS`.
-2. **Inscrever:** os jogadores fazem `POST /inscricoes` com `{ "torneioId" }`. Quem passar das vagas vai para `LISTA_ESPERA` e sobe sozinho se alguém cancelar.
+2. **Inscrever:** os jogadores fazem `POST /inscricoes` com `{ "torneioId" }`. Quem passar das vagas vai para `LISTA_ESPERA` e sobe sozinho se alguém cancelar ou se a loja aumentar as vagas.
 3. **Check-in:** no dia, `PUT /inscricoes/{id}/check-in` muda a inscrição para `CONFIRMADO`.
-4. **Chave:** com as inscrições encerradas (por `PUT /status` ou automaticamente no prazo), `POST /torneios/{id}/chaveamento` sorteia os confirmados.
-5. **Resultados:** `POST /partidas/{id}/resultado` com `{ "gamesA", "gamesB", "resultado" }` (os games podem vir de `/games`). Em caso de `EMPATE`, `POST /partidas/{id}/desempate` com `{ "vencedor": "A" }` ou `"B"`.
-6. **Fim:** o resultado da final finaliza o torneio e gera a classificação em `/torneio-resultados`. A loja só completa o prêmio, se quiser. Os troféus aparecem em `GET /jogadores/{id}/trofeus`.
+4. **Chave:** com as inscrições encerradas (por `PUT /status` ou automaticamente no prazo), `POST /torneios/{id}/chaveamento` sorteia os confirmados. A partir daqui as inscrições não mudam mais de status (nem check-in).
+5. **Resultados:** `POST /partidas/{id}/resultado` com `{ "gamesA", "gamesB", "resultado" }` (os games podem vir de `/games`). Em caso de `EMPATE`, `POST /partidas/{id}/desempate` com `{ "vencedor": "A" }` ou `"B"`. A final precisa de um vencedor: não aceita `DUPLO_NO_SHOW`.
+6. **Corrigir um resultado:** `POST /partidas/{id}/reabrir` desfaz o resultado (tira o vencedor da partida seguinte e desfaz o W.O.) enquanto a partida seguinte não começou. Depois, ajuste os games e registre o resultado de novo.
+7. **Fim:** o resultado da final finaliza o torneio e gera a classificação em `/torneio-resultados`. A loja só completa o prêmio, se quiser. Os troféus aparecem em `GET /jogadores/{id}/trofeus`.
+
+Na chave gerada automaticamente, rodadas e partidas não podem ser criadas, apagadas nem religadas à mão, e `PUT /partidas/{id}` só muda mesa e observação. O CRUD completo de rodadas e partidas vale para torneios montados manualmente.
 
 Status do torneio: `RASCUNHO` ⇄ `INSCRICOES_ABERTAS` ⇄ `INSCRICOES_ENCERRADAS` → `EM_ANDAMENTO` → `FINALIZADO`. Qualquer status antes do fim pode ir para `CANCELADO`.
+
+## Integração com o app mobile
+
+O app (TCG-front-mobile) é só para jogadores. O que a API oferece para ele:
+
+- **Login e cadastro** (`POST /auth/login`, `POST /auth/registro/jogador`) devolvem, além do token, `nome`, `nickname` e `imagemPerfil`, para o app montar a sessão sem outra chamada.
+- **`GET /jogadores/me`:** perfil completo do jogador logado, com email e data de nascimento (que não saem no perfil público). Tem os mesmos campos do `PUT /jogadores/{id}`, que substitui o perfil inteiro.
+- **Foto de perfil:** `POST /jogadores/{id}/imagem` (multipart, campo `arquivo`, JPG/PNG/WEBP até 5 MB). O arquivo fica na pasta `UPLOAD_DIR` e o banco guarda o caminho `/uploads/jogadores/<arquivo>`, servido em `GET /uploads/**`. O app completa o caminho com o endereço da API.
+- **Torneios** trazem `vagasDisponiveis` e `vagasOcupadas`, sem precisar de `GET /{id}/vagas` para cada um. A vitrine do app usa `?status=INSCRICOES_ABERTAS,INSCRICOES_ENCERRADAS,EM_ANDAMENTO,FINALIZADO`.
+- **Privacidade:** o status de pagamento só aparece em `/inscricoes` (para o dono e a equipe da loja), e a data de nascimento só em `/jogadores/me`.
 
 ## Contas e segurança
 
 - **Esqueci minha senha:** `POST /auth/esqueci-senha` envia por email um código para `POST /auth/redefinir-senha`. O código vale 30 minutos e uma única vez. Sem SMTP configurado, o email aparece no log da aplicação.
 - **Tokens:** trocar a senha devolve um token novo e invalida os anteriores. `POST /auth/logout` encerra só o token atual.
 - **Limites:** 5 logins errados em 15 minutos bloqueiam o email (429). Os pedidos de "esqueci minha senha" também são limitados.
-- **Limitação:** a lista de logouts e a contagem de tentativas ficam na memória da aplicação. Reiniciar a aplicação as zera, e com mais de uma instância rodando, cada uma teria a sua.
+- **Limites:** login de conta desativada com senha errada responde 401, como qualquer senha errada (não revela que o email existe).
+- **Limitação:** a lista de logouts, a contagem de tentativas e o controle de lembretes já enviados ficam na memória da aplicação. Reiniciar a aplicação os zera, e com mais de uma instância rodando, cada uma teria o seu.
 
 ## Erros
 

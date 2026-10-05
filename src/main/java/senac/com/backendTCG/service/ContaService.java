@@ -10,7 +10,10 @@ import senac.com.backendTCG.dto.AlterarSenhaRequest;
 import senac.com.backendTCG.dto.LoginResponse;
 import senac.com.backendTCG.entity.Conta;
 import senac.com.backendTCG.entity.enums.TipoConta;
+import senac.com.backendTCG.repository.AdministradorRepository;
 import senac.com.backendTCG.repository.ContaRepository;
+import senac.com.backendTCG.repository.UsuarioJogadorRepository;
+import senac.com.backendTCG.repository.UsuarioLojaRepository;
 import senac.com.backendTCG.security.JwtUtils;
 
 import java.time.LocalDateTime;
@@ -22,6 +25,9 @@ import java.util.Locale;
 public class ContaService {
 
     private final ContaRepository contaRepository;
+    private final UsuarioJogadorRepository usuarioJogadorRepository;
+    private final UsuarioLojaRepository usuarioLojaRepository;
+    private final AdministradorRepository administradorRepository;
     private final PasswordEncoder passwordEncoder;
     private final PermissaoService permissaoService;
     private final JwtUtils jwtUtils;
@@ -69,7 +75,23 @@ public class ContaService {
         conta.setSenhaHash(passwordEncoder.encode(request.novaSenha()));
         contaRepository.save(conta);
 
-        return LoginResponse.de(conta, jwtUtils.gerarTokenAcesso(conta));
+        return respostaDeLogin(conta, jwtUtils.gerarTokenAcesso(conta));
+    }
+
+    // Monta a resposta de login com o resumo do perfil (nome, nickname e imagem) de cada tipo de conta
+    public LoginResponse respostaDeLogin(Conta conta, String token) {
+        return switch (conta.getTipo()) {
+            case JOGADOR -> usuarioJogadorRepository.findById(conta.getId())
+                    .map(jogador -> LoginResponse.de(conta, token,
+                            jogador.getNome(), jogador.getNickname(), jogador.getImagemPerfil()))
+                    .orElseGet(() -> LoginResponse.de(conta, token, null, null, null));
+            case LOJA -> usuarioLojaRepository.findById(conta.getId())
+                    .map(loja -> LoginResponse.de(conta, token, loja.getNome(), null, loja.getImagemPerfil()))
+                    .orElseGet(() -> LoginResponse.de(conta, token, null, null, null));
+            case ADMIN -> administradorRepository.findById(conta.getId())
+                    .map(admin -> LoginResponse.de(conta, token, admin.getNome(), null, null))
+                    .orElseGet(() -> LoginResponse.de(conta, token, null, null, null));
+        };
     }
 
     @Transactional

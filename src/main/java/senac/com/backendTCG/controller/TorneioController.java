@@ -22,10 +22,11 @@ public class TorneioController {
 
     private final TorneioService torneioService;
 
+    // status aceita varios valores: ?status=INSCRICOES_ABERTAS,EM_ANDAMENTO (ou o parametro repetido)
     @GetMapping
     public ResponseEntity<List<Torneio>> listar(@RequestParam(required = false) Long lojaId,
                                                 @RequestParam(required = false) Integer jogoId,
-                                                @RequestParam(required = false) StatusTorneio status) {
+                                                @RequestParam(required = false) List<StatusTorneio> status) {
         return ResponseEntity.ok(torneioService.listar(lojaId, jogoId, status));
     }
 
@@ -57,7 +58,7 @@ public class TorneioController {
         return ResponseEntity.noContent().build();
     }
 
-    // Executa a procedure sp_gerar_chaveamento (exige status INSCRICOES_ENCERRADAS)
+    // Sorteia a chave com os CONFIRMADOS (ChaveamentoService; exige status INSCRICOES_ENCERRADAS)
     @PostMapping("/{id}/chaveamento")
     public ResponseEntity<List<ChaveamentoResponse>> gerarChaveamento(@PathVariable Long id) {
         return ResponseEntity.status(HttpStatus.CREATED).body(torneioService.gerarChaveamento(id));

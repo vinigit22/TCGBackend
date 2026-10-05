@@ -28,7 +28,7 @@ public class InscricaoController {
 
     @GetMapping("/{id}")
     public ResponseEntity<Inscricao> buscarPorId(@PathVariable Long id) {
-        return ResponseEntity.ok(inscricaoService.buscarPorId(id));
+        return ResponseEntity.ok(inscricaoService.consultar(id));
     }
 
     @PostMapping

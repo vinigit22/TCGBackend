@@ -26,7 +26,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    // Consultas abertas ao publico (vitrine de torneios, eventos, lojas e jogadores)
+    // Consultas abertas ao publico (vitrine de torneios, eventos, lojas e jogadores) e imagens enviadas.
+    // /inscricoes fica de fora: tem status de pagamento e so o jogador, a equipe da loja e o admin veem.
+    // /jogadores/me e publico aqui, mas responde 401 sem token (exige a conta logada).
     private static final String[] GET_PUBLICOS = {
             "/jogos/**",
             "/formatos/**",
@@ -36,11 +38,11 @@ public class SecurityConfig {
             "/eventos/**",
             "/evento-participacoes/**",
             "/torneios/**",
-            "/inscricoes/**",
             "/rodadas/**",
             "/partidas/**",
             "/games/**",
-            "/torneio-resultados/**"
+            "/torneio-resultados/**",
+            "/uploads/**"
     };
 
     // Cadastro, login e recuperacao de conta

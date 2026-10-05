@@ -15,18 +15,18 @@ import java.util.Optional;
 @Repository
 public interface TorneioRepository extends JpaRepository<Torneio, Long> {
 
-    // Filtros opcionais: parametro null = nao filtra
+    // lojaId e jogoId opcionais (null = nao filtra). status nunca vem vazio: sem filtro, o service manda todos.
     @Query("""
             select t from Torneio t
             where t.deletadoEm is null
               and (:lojaId is null or t.loja.contaId = :lojaId)
               and (:jogoId is null or t.jogo.id = :jogoId)
-              and (:status is null or t.status = :status)
+              and t.status in :status
             order by t.dataInicio
             """)
     List<Torneio> filtrar(@Param("lojaId") Long lojaId,
                           @Param("jogoId") Integer jogoId,
-                          @Param("status") StatusTorneio status);
+                          @Param("status") Collection<StatusTorneio> status);
 
     Optional<Torneio> findByIdAndDeletadoEmIsNull(Long id);
 

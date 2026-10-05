@@ -4,7 +4,7 @@
 -- Recria no H2 as views do TorneioTCG_SQL.sql (as procedures nao sao mais usadas pela API).
 -- =====================================================================
 
--- Pagina de trofeus do jogador
+-- Pagina de trofeus do jogador. Resultados de torneios excluidos (soft delete) nao contam.
 CREATE OR REPLACE VIEW vw_trofeus AS
 SELECT
     j.conta_id                                            AS jogador_id,
@@ -15,7 +15,12 @@ SELECT
     SUM(CASE WHEN r.colocacao = 3 THEN 1 ELSE 0 END)      AS bronze,
     COUNT(r.id)                                           AS torneios_disputados
 FROM jogador j
-LEFT JOIN torneio_resultado r ON r.jogador_id = j.conta_id
+LEFT JOIN (
+    SELECT tr.id, tr.jogador_id, tr.colocacao
+      FROM torneio_resultado tr
+      JOIN torneio t ON t.id = tr.torneio_id
+     WHERE t.deletado_em IS NULL
+) r ON r.jogador_id = j.conta_id
 GROUP BY j.conta_id, j.nickname, j.nome;
 
 -- Agenda unificada da loja (eventos + torneios).

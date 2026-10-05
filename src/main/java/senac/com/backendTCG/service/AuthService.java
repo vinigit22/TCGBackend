@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -52,21 +53,32 @@ public class AuthService {
         } catch (BadCredentialsException e) {
             limiteTentativas.registrar(chave);
             throw e;
+        } catch (DisabledException e) {
+            // O Spring confere "conta desativada" antes da senha. Sem esta checagem, uma senha errada
+            // responderia 403 e revelaria que o email existe.
+            boolean senhaConfere = contaRepository.findByEmail(email)
+                    .map(conta -> passwordEncoder.matches(request.senha(), conta.getSenhaHash()))
+                    .orElse(false);
+            if (!senhaConfere) {
+                limiteTentativas.registrar(chave);
+                throw new BadCredentialsException("Email ou senha inválidos");
+            }
+            throw e;
         }
 
         limiteTentativas.limpar(chave);
         Conta conta = contaService.registrarLogin(email);
-        return LoginResponse.de(conta, jwtUtils.gerarTokenAcesso(conta));
+        return contaService.respostaDeLogin(conta, jwtUtils.gerarTokenAcesso(conta));
     }
 
     public LoginResponse registrarJogador(RegistroJogadorRequest request) {
         Conta conta = usuarioJogadorService.criar(request).getConta();
-        return LoginResponse.de(conta, jwtUtils.gerarTokenAcesso(conta));
+        return contaService.respostaDeLogin(conta, jwtUtils.gerarTokenAcesso(conta));
     }
 
     public LoginResponse registrarLoja(RegistroLojaRequest request) {
         Conta conta = usuarioLojaService.criar(request).getConta();
-        return LoginResponse.de(conta, jwtUtils.gerarTokenAcesso(conta));
+        return contaService.respostaDeLogin(conta, jwtUtils.gerarTokenAcesso(conta));
     }
 
     public Conta contaLogada() {

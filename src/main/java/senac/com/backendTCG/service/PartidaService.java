@@ -29,20 +29,25 @@ public class PartidaService {
     private final TorneioService torneioService;
     private final ChaveamentoService chaveamentoService;
 
+    // Partidas de torneio excluido (soft delete) ficam de fora
     public List<Partida> listar(Long rodadaId, Long torneioId) {
+        List<Partida> partidas;
         if (rodadaId != null) {
-            return partidaRepository.findByRodada_IdOrderByMesaAsc(rodadaId);
+            partidas = partidaRepository.findByRodada_IdOrderByMesaAsc(rodadaId);
+        } else if (torneioId != null) {
+            partidas = partidaRepository.findByRodada_Torneio_IdOrderByRodada_NumeroAscMesaAsc(torneioId);
+        } else {
+            partidas = partidaRepository.findAll();
         }
 
-        if (torneioId != null) {
-            return partidaRepository.findByRodada_Torneio_IdOrderByRodada_NumeroAscMesaAsc(torneioId);
-        }
-
-        return partidaRepository.findAll();
+        return partidas.stream()
+                .filter(partida -> partida.getRodada().getTorneio().getDeletadoEm() == null)
+                .toList();
     }
 
     public Partida buscarPorId(Long id) {
         return partidaRepository.findById(id)
+                .filter(partida -> partida.getRodada().getTorneio().getDeletadoEm() == null)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Partida não encontrada"));
     }
 
@@ -54,6 +59,7 @@ public class PartidaService {
 
         Rodada rodada = rodadaService.buscarPorId(request.rodadaId());
         torneioService.verificarPodeGerenciar(rodada.getTorneio());
+        torneioService.verificarChaveManual(rodada.getTorneio());
 
         if (partidaRepository.existsByRodada_IdAndMesa(rodada.getId(), request.mesa())) {
             throw new ResponseStatusException(
@@ -67,21 +73,34 @@ public class PartidaService {
         return partidaRepository.save(partida);
     }
 
+    // Na chave gerada automaticamente o PUT so muda mesa e observacao: jogadores, ligacoes, status e
+    // resultado mudam por /resultado, /desempate e /reabrir, que mantem a chave e a classificacao coerentes.
+    // Campos nao informados (null) contam como "mantidos".
     @Transactional
     public Partida atualizar(Long id, PartidaRequest request) {
         Partida partida = buscarPorId(id);
-        torneioService.verificarPodeGerenciar(partida.getRodada().getTorneio());
+        Torneio torneio = partida.getRodada().getTorneio();
+        torneioService.verificarPodeGerenciar(torneio);
 
         if (partidaRepository.existsByRodada_IdAndMesaAndIdNot(partida.getRodada().getId(), request.mesa(), id)) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT, "Já existe uma partida na mesa " + request.mesa() + " desta rodada");
         }
 
-        preencher(partida, request);
+        if (torneioService.temChaveAutomatica(torneio)) {
+            if (mudaEstrutura(partida, request)) {
+                torneioService.verificarChaveManual(torneio);
+            }
+            partida.setMesa(request.mesa());
+            partida.setObservacao(request.observacao());
+        } else {
+            preencher(partida, request);
+        }
+
         return partidaRepository.save(partida);
     }
 
-    // Grava o placar e o vencedor, marca NO_SHOW em caso de W.O. e avanca o vencedor na chave.
+    // Registra o placar e o vencedor, marca NO_SHOW em caso de W.O. e avanca o vencedor na chave.
     // Empate deixa a partida aguardando o desempate. A final encerra o torneio e gera a classificacao.
     @Transactional
     public Partida registrarResultado(Long id, ResultadoPartidaRequest request) {
@@ -101,11 +120,28 @@ public class PartidaService {
         return partida;
     }
 
-    // Games e notificacoes da partida sao apagados junto (ON DELETE CASCADE)
+    // Desfaz o resultado de uma partida finalizada para corrigi-lo (enquanto a partida seguinte nao comecou)
+    @Transactional
+    public Partida reabrir(Long id) {
+        Partida partida = buscarPorId(id);
+        torneioService.verificarPodeGerenciar(partida.getRodada().getTorneio());
+
+        chaveamentoService.reabrir(partida);
+        return partida;
+    }
+
+    // Os games da partida sao apagados junto (ON DELETE CASCADE). As partidas que apontavam para esta
+    // (proxima partida) perdem a ligacao, em vez de ficar apontando para o vazio.
     @Transactional
     public void deletar(Long id) {
         Partida partida = buscarPorId(id);
         torneioService.verificarPodeGerenciar(partida.getRodada().getTorneio());
+        torneioService.verificarChaveManual(partida.getRodada().getTorneio());
+
+        partidaRepository.findByProximaPartidaId(partida.getId()).forEach(anterior -> {
+            anterior.setProximaPartidaId(null);
+            anterior.setProximoSlot(null);
+        });
         partidaRepository.delete(partida);
     }
 
@@ -152,6 +188,26 @@ public class PartidaService {
         if (partida.getStatus() == StatusPartida.FINALIZADA && partida.getFinalizadaEm() == null) {
             partida.setFinalizadaEm(LocalDateTime.now());
         }
+    }
+
+    private boolean mudaEstrutura(Partida partida, PartidaRequest request) {
+        return mudou(idDe(partida.getInscricaoA()), request.inscricaoAId())
+                || mudou(idDe(partida.getInscricaoB()), request.inscricaoBId())
+                || mudou(partida.getProximaPartidaId(), request.proximaPartidaId())
+                || mudou(partida.getProximoSlot(), request.proximoSlot())
+                || mudou(partida.getStatus(), request.status())
+                || mudou(partida.getResultado(), request.resultado())
+                || mudou(partida.getGamesA(), request.gamesA())
+                || mudou(partida.getGamesB(), request.gamesB())
+                || mudou(partida.getGamesEmpate(), request.gamesEmpate());
+    }
+
+    private static boolean mudou(Object atual, Object informado) {
+        return informado != null && !informado.equals(atual);
+    }
+
+    private static Long idDe(Inscricao inscricao) {
+        return inscricao == null ? null : inscricao.getId();
     }
 
     private Inscricao buscarInscricaoDoTorneio(Long inscricaoId, Torneio torneio) {

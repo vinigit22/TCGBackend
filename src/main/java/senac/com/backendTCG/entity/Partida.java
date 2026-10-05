@@ -31,13 +31,14 @@ public class Partida {
     @Column(name = "mesa", nullable = false)
     private Integer mesa;
 
-    // O torneio ja aparece dentro de "rodada", entao nao repetimos nas inscricoes
-    @JsonIgnoreProperties("torneio")
+    // O torneio ja aparece dentro de "rodada", entao nao repetimos nas inscricoes.
+    // O status de pagamento e privado (so o jogador e a equipe da loja veem, em /inscricoes).
+    @JsonIgnoreProperties({"torneio", "pagamentoStatus"})
     @ManyToOne
     @JoinColumn(name = "inscricao_a_id")
     private Inscricao inscricaoA;
 
-    @JsonIgnoreProperties("torneio")
+    @JsonIgnoreProperties({"torneio", "pagamentoStatus"})
     @ManyToOne
     @JoinColumn(name = "inscricao_b_id")
     private Inscricao inscricaoB;
@@ -59,7 +60,7 @@ public class Partida {
     private ResultadoPartida resultado;
 
     // null em empate ou duplo no-show (ck_partida_resultado)
-    @JsonIgnoreProperties("torneio")
+    @JsonIgnoreProperties({"torneio", "pagamentoStatus"})
     @ManyToOne
     @JoinColumn(name = "vencedor_id")
     private Inscricao vencedor;

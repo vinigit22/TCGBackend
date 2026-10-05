@@ -14,9 +14,11 @@ import java.util.Optional;
 @Repository
 public interface InscricaoRepository extends JpaRepository<Inscricao, Long> {
 
+    // Inscricoes de torneio excluido (soft delete) ficam de fora
     @Query("""
             select i from Inscricao i
-            where (:torneioId is null or i.torneio.id = :torneioId)
+            where i.torneio.deletadoEm is null
+              and (:torneioId is null or i.torneio.id = :torneioId)
               and (:jogadorId is null or i.jogador.contaId = :jogadorId)
               and (:status is null or i.status = :status)
             order by i.inscritoEm

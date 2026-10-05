@@ -56,6 +56,13 @@ public class PartidaController {
         return ResponseEntity.ok(partidaService.registrarDesempate(id, request));
     }
 
+    // Desfaz o resultado de uma partida finalizada para corrigi-lo (os games voltam a ser editaveis).
+    // So vale enquanto a partida seguinte da chave nao comecou.
+    @PostMapping("/{id}/reabrir")
+    public ResponseEntity<Partida> reabrir(@PathVariable Long id) {
+        return ResponseEntity.ok(partidaService.reabrir(id));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletar(@PathVariable Long id) {
         partidaService.deletar(id);

@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import senac.com.backendTCG.dto.InscricaoRequest;
+import senac.com.backendTCG.entity.Conta;
 import senac.com.backendTCG.entity.Inscricao;
 import senac.com.backendTCG.entity.Torneio;
 import senac.com.backendTCG.entity.UsuarioJogador;
@@ -24,23 +25,42 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class InscricaoService {
 
-    // Status que contam como vaga ocupada (mesma regra da trigger trg_inscricao_controla_vagas)
-    private static final List<StatusInscricao> OCUPAM_VAGA =
-            List.of(StatusInscricao.INSCRITO, StatusInscricao.CONFIRMADO);
-
     private final InscricaoRepository inscricaoRepository;
     private final TorneioService torneioService;
     private final UsuarioJogadorService usuarioJogadorService;
     private final PermissaoService permissaoService;
     private final NotificacaoService notificacaoService;
+    private final ListaEsperaService listaEsperaService;
     private final EntityManager entityManager;
 
+    // Inscricoes nao sao publicas (tem status de pagamento): o jogador ve as proprias (jogadorId = a sua conta),
+    // a equipe da loja ve as dos seus torneios (torneioId) e o admin ve todas
     public List<Inscricao> listar(Long torneioId, Long jogadorId, StatusInscricao status) {
+        Conta conta = permissaoService.contaLogada();
+
+        if (!permissaoService.isAdmin(conta) && !conta.getId().equals(jogadorId)) {
+            if (torneioId == null) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "Informe jogadorId (suas inscrições) ou torneioId (equipe da loja)");
+            }
+            permissaoService.verificarEquipeLoja(torneioService.buscarPorId(torneioId).getLoja().getContaId());
+        }
+
         return inscricaoRepository.filtrar(torneioId, jogadorId, status);
     }
 
+    // GET /inscricoes/{id}: o dono da inscricao, a equipe da loja ou um admin
+    public Inscricao consultar(Long id) {
+        Inscricao inscricao = buscarPorId(id);
+        permissaoService.verificarContaOuEquipeLoja(
+                inscricao.getJogador().getContaId(), inscricao.getTorneio().getLoja().getContaId());
+        return inscricao;
+    }
+
+    // Inscricoes de torneio excluido (soft delete) somem junto com ele
     public Inscricao buscarPorId(Long id) {
         return inscricaoRepository.findById(id)
+                .filter(inscricao -> inscricao.getTorneio().getDeletadoEm() == null)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Inscrição não encontrada"));
     }
 
@@ -84,7 +104,7 @@ public class InscricaoService {
             }
 
             // Reinscricao: a trigger de vagas so roda no INSERT, entao a regra e aplicada aqui
-            inscricao.setStatus(temVaga(torneio) ? StatusInscricao.INSCRITO : StatusInscricao.LISTA_ESPERA);
+            inscricao.setStatus(listaEsperaService.temVaga(torneio) ? StatusInscricao.INSCRITO : StatusInscricao.LISTA_ESPERA);
             inscricao.setPagamentoStatus(pagamento);
             inscricao.setInscritoEm(LocalDateTime.now());
             inscricao.setCheckInEm(null);
@@ -96,7 +116,7 @@ public class InscricaoService {
         inscricao.setTorneio(torneio);
         inscricao.setJogador(jogador);
         inscricao.setPagamentoStatus(pagamento);
-        inscricao.setStatus(temVaga(torneio) ? StatusInscricao.INSCRITO : StatusInscricao.LISTA_ESPERA);
+        inscricao.setStatus(listaEsperaService.temVaga(torneio) ? StatusInscricao.INSCRITO : StatusInscricao.LISTA_ESPERA);
 
         inscricaoRepository.saveAndFlush(inscricao);
 
@@ -179,11 +199,22 @@ public class InscricaoService {
     }
 
     private void aplicarStatus(Inscricao inscricao, StatusInscricao novo) {
-        StatusInscricao anterior = inscricao.getStatus();
-        boolean ocupava = OCUPAM_VAGA.contains(anterior);
-        boolean vaiOcupar = OCUPAM_VAGA.contains(novo);
+        StatusTorneio statusTorneio = inscricao.getTorneio().getStatus();
 
-        if (vaiOcupar && !ocupava && !temVaga(inscricao.getTorneio())) {
+        // Depois do sorteio, quem nao esta na chave nao entra mais (o status NO_SHOW e marcado pela propria chave)
+        if (statusTorneio == StatusTorneio.EM_ANDAMENTO) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "A chave deste torneio já foi gerada: as inscrições não podem mais mudar de status");
+        }
+        if (novo == StatusInscricao.CONFIRMADO && statusTorneio == StatusTorneio.CANCELADO) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Este torneio foi cancelado");
+        }
+
+        StatusInscricao anterior = inscricao.getStatus();
+        boolean ocupava = ListaEsperaService.OCUPAM_VAGA.contains(anterior);
+        boolean vaiOcupar = ListaEsperaService.OCUPAM_VAGA.contains(novo);
+
+        if (vaiOcupar && !ocupava && !listaEsperaService.temVaga(inscricao.getTorneio())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Não há vagas disponíveis neste torneio");
         }
 
@@ -208,25 +239,9 @@ public class InscricaoService {
                     inscricao.getTorneio().getId(), null, null);
         }
 
+        // Vaga liberada: o primeiro da lista de espera sobe para INSCRITO
         if (ocupava && !vaiOcupar) {
-            promoverListaDeEspera(inscricao.getTorneio());
+            listaEsperaService.promover(inscricao.getTorneio());
         }
-    }
-
-    // Quando uma vaga e liberada, o primeiro da lista de espera sobe para INSCRITO
-    private void promoverListaDeEspera(Torneio torneio) {
-        inscricaoRepository.flush();
-
-        inscricaoRepository
-                .findFirstByTorneio_IdAndStatusOrderByInscritoEmAsc(torneio.getId(), StatusInscricao.LISTA_ESPERA)
-                .filter(proximo -> temVaga(torneio))
-                .ifPresent(proximo -> {
-                    proximo.setStatus(StatusInscricao.INSCRITO);
-                    inscricaoRepository.save(proximo);
-                });
-    }
-
-    private boolean temVaga(Torneio torneio) {
-        return inscricaoRepository.countByTorneio_IdAndStatusIn(torneio.getId(), OCUPAM_VAGA) < torneio.getVagasMax();
     }
 }

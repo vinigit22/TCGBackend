@@ -37,6 +37,8 @@ public class UsuarioJogador {
     @Column(name = "bio", length = 500)
     private String bio;
 
+    // Dado pessoal: fica fora do JSON publico. O proprio jogador le em GET /jogadores/me
+    @JsonIgnore
     @Column(name = "data_nascimento")
     private LocalDate dataNascimento;
 
