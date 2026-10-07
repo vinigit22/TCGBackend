@@ -53,6 +53,14 @@ INSERT INTO torneio (loja_id, jogo_id, formato_id, titulo, descricao, vagas_max,
     (1, 1, 1, 'Standard Semanal', 'Torneio semanal de Magic, formato Standard, melhor de 3.',
      4, 25.00, 'R$ 200 em creditos + 3 boosters para o campeao',
      '2026-09-05 18:00:00', '2026-09-05 19:00:00', 'INSCRICOES_ABERTAS', LOCALTIMESTAMP, LOCALTIMESTAMP);
+     INSERT INTO torneio (loja_id, jogo_id, formato_id, titulo, descricao, vagas_max, taxa_inscricao, premiacao,
+                          inscricoes_ate, data_inicio, status, criado_em, atualizado_em) VALUES
+         (1, 2, 5, 'Pokemon Liga Local', 'Torneio de Pokemon TCG, formato Standard, aberto para todos os niveis.',
+          16, 20.00, '5 boosters para o campeao',
+          '2026-11-14 17:00:00', '2026-11-14 18:00:00', 'INSCRICOES_ABERTAS', LOCALTIMESTAMP, LOCALTIMESTAMP),
+         (1, 3, 7, 'Yu-Gi-Oh Duelo de Sabado', 'Torneio de Yu-Gi-Oh!, formato Advanced, melhor de 3.',
+          8, 0.00, NULL,
+          '2026-11-21 13:00:00', '2026-11-21 14:00:00', 'INSCRICOES_ABERTAS', LOCALTIMESTAMP, LOCALTIMESTAMP);
 
 INSERT INTO inscricao (torneio_id, jogador_id, status, pagamento_status, inscrito_em, check_in_em) VALUES
     (1, 2, 'CONFIRMADO', 'PAGO', LOCALTIMESTAMP, LOCALTIMESTAMP),
