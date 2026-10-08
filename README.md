@@ -21,6 +21,16 @@ API REST para lojas de card game organizarem torneios e eventos, e para jogadore
 - **Limite de login:** depois de 5 senhas erradas em 15 minutos, o login daquele email fica bloqueado (429).
 - **Valores de desenvolvimento isolados:** chave JWT e senha do admin só têm valor padrão no perfil H2. O CORS é configurável, e o console do H2 só existe no perfil H2.
 
+**Funcionários de loja**
+- `TipoConta.FUNCIONARIO`: tipo de conta criado exclusivamente pelo **proprietário** da loja via `POST /lojas/{id}/funcionarios` com `{ email, senha, papel }`.
+- O funcionário acessa o painel web normalmente; o `lojaId` vem no `LoginResponse` e é usado para rotear o acesso ao painel correto.
+- Acesso ao app mobile: negado (o guard do web aceita `LOJA`, `ADMIN` e `FUNCIONARIO`).
+
+**Check-in de partida**
+- `POST /partidas/{id}/convocar` (equipe da loja): define `checkInExpiraEm = agora + 5 min` e envia notificação `CHECK_IN_SOLICITADO` aos dois jogadores.
+- `POST /partidas/{id}/check-in` (jogador autenticado): registra `checkInAEm` ou `checkInBEm` conforme a inscrição do jogador.
+- Os campos `checkInExpiraEm`, `checkInAEm` e `checkInBEm` retornam em `GET /partidas/{id}` para o app mobile fazer o polling.
+
 **Mudança técnica:** o chaveamento e os resultados agora rodam em Java (`ChaveamentoService`), igual no H2 e no MySQL. As procedures do script SQL não são mais chamadas; as views e as triggers continuam valendo.
 
 ## Como rodar
@@ -68,10 +78,13 @@ A API sobe em `http://localhost:8080`, já com dados de teste. Os dados voltam a
 | Email | Senha | Tipo |
 |---|---|---|
 | `admin@tcg.com` | `admin123` | Admin |
-| `contato@cardhouse.com.br` | `123456` | Loja (id 1) |
+| `contato@cardhouse.com.br` | `123456` | Loja — Card House (conta_id 1) |
+| `contato@dragonslair.com.br` | `123456` | Loja — Dragon's Lair (conta_id 6) |
 | `eric@email.com`, `samuel@email.com`, `vinicius@email.com`, `lucas@email.com` | `123456` | Jogadores (ids 2 a 5) |
 
 O torneio 1 já tem 4 inscritos confirmados, pronto para gerar a chave. No MySQL, só o admin funciona: as senhas das contas de exemplo do script são fictícias.
+
+> **Atenção (H2):** `loja_membro.loja_id`, `torneio.loja_id` e `evento.loja_id` referenciam `loja.conta_id`, não `loja.id`. O `conta_id` da Dragon's Lair é 6, portanto todas as linhas de teste usam `loja_id=6`.
 
 **H2 Console:** `http://localhost:8080/h2-console`, com JDBC URL `jdbc:h2:mem:tcg_torneios`, usuário `sa` e senha vazia.
 
@@ -95,13 +108,14 @@ O torneio 1 já tem 4 inscritos confirmados, pronto para gerar a chave. No MySQL
 | `/evento-participacoes` | `eventoId`, `jogadorId` | | Jogador ou equipe da loja |
 | `/torneios` | `lojaId`, `jogoId`, `status` (aceita vários: `?status=A,B`) | `PUT /{id}/status`, `POST` e `GET /{id}/chaveamento`, `GET /{id}/vagas` | Equipe da loja |
 | `/inscricoes` | `jogadorId` (as suas) ou `torneioId` (equipe da loja), `status` | `PUT /{id}/check-in`, `PUT /{id}/cancelar` | Jogador ou equipe da loja |
-| `/rodadas`, `/partidas`, `/games` | `torneioId`, `rodadaId`, `partidaId` | `POST /partidas/{id}/resultado`, `POST /partidas/{id}/desempate`, `POST /partidas/{id}/reabrir` | Equipe da loja |
+| `/rodadas`, `/partidas`, `/games` | `torneioId`, `rodadaId`, `partidaId` | `POST /partidas/{id}/resultado`, `POST /partidas/{id}/desempate`, `POST /partidas/{id}/reabrir`, `POST /partidas/{id}/convocar`, `POST /partidas/{id}/check-in` | Equipe da loja (convocar); jogador logado (check-in) |
+| `/lojas/{id}/funcionarios` | — | `POST` | Proprietário da loja |
 | `/torneio-resultados` | `torneioId`, `jogadorId` | | Equipe da loja |
 | `/notificacoes` | só as suas | `GET /nao-lidas`, `GET /nao-lidas/total`, `PUT /{id}/lida`, `PUT /lidas` | O próprio usuário |
 | `/contas` | `tipo` | `PUT /{id}/senha`, `PUT /{id}/status` (admin) | O próprio usuário ou admin |
 | `/administradores` | | | Admin |
 
-**Equipe da loja** = a conta da loja, qualquer membro ativo dela (proprietário, organizador ou juiz) ou um admin.
+**Equipe da loja** = a conta da loja, qualquer membro ativo dela (proprietário, organizador, juiz ou **funcionário**) ou um admin.
 
 Excluir conta, torneio ou evento é *soft delete*: o registro fica no banco, mas some da API.
 

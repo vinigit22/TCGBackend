@@ -6,9 +6,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import senac.com.backendTCG.dto.AgendaLojaResponse;
+import senac.com.backendTCG.dto.FuncionarioRequest;
 import senac.com.backendTCG.dto.RegistroLojaRequest;
 import senac.com.backendTCG.dto.UsuarioLojaRequest;
 import senac.com.backendTCG.dto.VerificacaoLojaRequest;
+import senac.com.backendTCG.entity.LojaMembro;
 import senac.com.backendTCG.entity.UsuarioLoja;
 import senac.com.backendTCG.service.UsuarioLojaService;
 
@@ -57,6 +59,13 @@ public class UsuarioLojaController {
     public ResponseEntity<UsuarioLoja> alterarVerificacao(@PathVariable Long id,
                                                           @Valid @RequestBody VerificacaoLojaRequest request) {
         return ResponseEntity.ok(usuarioLojaService.alterarVerificacao(id, request.verificada()));
+    }
+
+    // Cria uma conta de funcionário vinculada à loja (tipo FUNCIONARIO, papel ORGANIZADOR ou JUIZ)
+    @PostMapping("/{id}/funcionarios")
+    public ResponseEntity<LojaMembro> criarFuncionario(@PathVariable Long id,
+                                                       @Valid @RequestBody FuncionarioRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(usuarioLojaService.criarFuncionario(id, request));
     }
 
     @DeleteMapping("/{id}")

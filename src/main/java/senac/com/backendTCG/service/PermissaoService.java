@@ -101,6 +101,7 @@ public class PermissaoService {
 
         if (isAdmin(conta)
                 || conta.getTipo() == TipoConta.LOJA
+                || conta.getTipo() == TipoConta.FUNCIONARIO
                 || lojaMembroRepository.existsByConta_IdAndAtivoTrue(conta.getId())) {
             return conta;
         }

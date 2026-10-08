@@ -6,6 +6,7 @@ import senac.com.backendTCG.entity.LojaMembro;
 import senac.com.backendTCG.entity.enums.PapelMembro;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface LojaMembroRepository extends JpaRepository<LojaMembro, Long> {
@@ -14,4 +15,5 @@ public interface LojaMembroRepository extends JpaRepository<LojaMembro, Long> {
     boolean existsByLoja_ContaIdAndConta_IdAndAtivoTrue(Long lojaId, Long contaId);
     boolean existsByLoja_ContaIdAndConta_IdAndPapelAndAtivoTrue(Long lojaId, Long contaId, PapelMembro papel);
     boolean existsByConta_IdAndAtivoTrue(Long contaId);
+    Optional<LojaMembro> findFirstByConta_IdAndAtivoTrue(Long contaId);
 }

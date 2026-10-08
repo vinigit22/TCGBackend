@@ -63,6 +63,18 @@ public class PartidaController {
         return ResponseEntity.ok(partidaService.reabrir(id));
     }
 
+    // Loja convoca os jogadores: abre a janela de 5 minutos para check-in e notifica ambos
+    @PostMapping("/{id}/convocar")
+    public ResponseEntity<Partida> convocar(@PathVariable Long id) {
+        return ResponseEntity.ok(partidaService.convocar(id));
+    }
+
+    // Jogador confirma presença dentro da janela de 5 minutos (requer autenticacao do proprio jogador)
+    @PostMapping("/{id}/check-in")
+    public ResponseEntity<Partida> checkIn(@PathVariable Long id) {
+        return ResponseEntity.ok(partidaService.checkIn(id));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletar(@PathVariable Long id) {
         partidaService.deletar(id);

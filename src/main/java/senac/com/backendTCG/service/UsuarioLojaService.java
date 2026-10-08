@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import senac.com.backendTCG.dto.AgendaLojaResponse;
+import senac.com.backendTCG.dto.FuncionarioRequest;
 import senac.com.backendTCG.dto.RegistroLojaRequest;
 import senac.com.backendTCG.dto.UsuarioLojaRequest;
 import senac.com.backendTCG.entity.Conta;
@@ -106,6 +107,21 @@ public class UsuarioLojaService {
         UsuarioLoja loja = buscarPorId(id);
         loja.setVerificada(verificada);
         return usuarioLojaRepository.save(loja);
+    }
+
+    // Cria uma conta FUNCIONARIO vinculada à loja com o papel informado (ORGANIZADOR ou JUIZ)
+    @Transactional
+    public LojaMembro criarFuncionario(Long lojaId, FuncionarioRequest request) {
+        permissaoService.verificarProprietarioLoja(lojaId);
+        UsuarioLoja loja = buscarPorId(lojaId);
+
+        Conta conta = contaService.criar(request.email(), request.senha(), TipoConta.FUNCIONARIO);
+
+        LojaMembro membro = new LojaMembro();
+        membro.setLoja(loja);
+        membro.setConta(conta);
+        membro.setPapel(request.papel());
+        return lojaMembroRepository.save(membro);
     }
 
     // Soft delete da conta: torneios e eventos antigos continuam no banco

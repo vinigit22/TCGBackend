@@ -12,9 +12,15 @@ public record LoginResponse(
         TipoConta tipo,
         String nome,
         String nickname,
-        String imagemPerfil
+        String imagemPerfil,
+        // Preenchido apenas para FUNCIONARIO: id da loja à qual pertence
+        Long lojaId
 ) {
     public static LoginResponse de(Conta conta, String token, String nome, String nickname, String imagemPerfil) {
-        return new LoginResponse(token, conta.getId(), conta.getEmail(), conta.getTipo(), nome, nickname, imagemPerfil);
+        return new LoginResponse(token, conta.getId(), conta.getEmail(), conta.getTipo(), nome, nickname, imagemPerfil, null);
+    }
+
+    public static LoginResponse deFuncionario(Conta conta, String token, String nome, Long lojaId) {
+        return new LoginResponse(token, conta.getId(), conta.getEmail(), conta.getTipo(), nome, null, null, lojaId);
     }
 }

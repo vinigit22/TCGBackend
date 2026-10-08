@@ -82,4 +82,14 @@ public class Partida {
 
     @Column(name = "finalizada_em")
     private LocalDateTime finalizadaEm;
+
+    // Check-in dos jogadores (janela de 5 minutos após a convocação)
+    @Column(name = "check_in_expira_em")
+    private LocalDateTime checkInExpiraEm;
+
+    @Column(name = "check_in_a_em")
+    private LocalDateTime checkInAEm;
+
+    @Column(name = "check_in_b_em")
+    private LocalDateTime checkInBEm;
 }

@@ -12,6 +12,7 @@ import senac.com.backendTCG.entity.Conta;
 import senac.com.backendTCG.entity.enums.TipoConta;
 import senac.com.backendTCG.repository.AdministradorRepository;
 import senac.com.backendTCG.repository.ContaRepository;
+import senac.com.backendTCG.repository.LojaMembroRepository;
 import senac.com.backendTCG.repository.UsuarioJogadorRepository;
 import senac.com.backendTCG.repository.UsuarioLojaRepository;
 import senac.com.backendTCG.security.JwtUtils;
@@ -28,6 +29,7 @@ public class ContaService {
     private final UsuarioJogadorRepository usuarioJogadorRepository;
     private final UsuarioLojaRepository usuarioLojaRepository;
     private final AdministradorRepository administradorRepository;
+    private final LojaMembroRepository lojaMembroRepository;
     private final PasswordEncoder passwordEncoder;
     private final PermissaoService permissaoService;
     private final JwtUtils jwtUtils;
@@ -91,6 +93,12 @@ public class ContaService {
             case ADMIN -> administradorRepository.findById(conta.getId())
                     .map(admin -> LoginResponse.de(conta, token, admin.getNome(), null, null))
                     .orElseGet(() -> LoginResponse.de(conta, token, null, null, null));
+            case FUNCIONARIO -> lojaMembroRepository.findFirstByConta_IdAndAtivoTrue(conta.getId())
+                    .map(membro -> LoginResponse.deFuncionario(
+                            conta, token,
+                            conta.getEmail(),
+                            membro.getLoja().getConta().getId()))
+                    .orElseGet(() -> LoginResponse.de(conta, token, conta.getEmail(), null, null));
         };
     }
 

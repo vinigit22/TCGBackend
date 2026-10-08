@@ -14,6 +14,7 @@ import senac.com.backendTCG.entity.Rodada;
 import senac.com.backendTCG.entity.Torneio;
 import senac.com.backendTCG.entity.enums.ResultadoPartida;
 import senac.com.backendTCG.entity.enums.StatusPartida;
+import senac.com.backendTCG.entity.enums.TipoNotificacao;
 import senac.com.backendTCG.repository.PartidaRepository;
 
 import java.time.LocalDateTime;
@@ -28,6 +29,8 @@ public class PartidaService {
     private final InscricaoService inscricaoService;
     private final TorneioService torneioService;
     private final ChaveamentoService chaveamentoService;
+    private final NotificacaoService notificacaoService;
+    private final PermissaoService permissaoService;
 
     // Partidas de torneio excluido (soft delete) ficam de fora
     public List<Partida> listar(Long rodadaId, Long torneioId) {
@@ -128,6 +131,58 @@ public class PartidaService {
 
         chaveamentoService.reabrir(partida);
         return partida;
+    }
+
+    // Loja convoca os jogadores: abre janela de 5 min para check-in e envia notificacao a cada um
+    @Transactional
+    public Partida convocar(Long id) {
+        Partida partida = buscarPorId(id);
+        torneioService.verificarPodeGerenciar(partida.getRodada().getTorneio());
+
+        if (partida.getInscricaoA() == null || partida.getInscricaoB() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A partida precisa ter dois jogadores para ser convocada");
+        }
+
+        partida.setCheckInExpiraEm(LocalDateTime.now().plusMinutes(5));
+        partida.setCheckInAEm(null);
+        partida.setCheckInBEm(null);
+        Partida salva = partidaRepository.save(partida);
+
+        Long torneioId = partida.getRodada().getTorneio().getId();
+        String titulo = "Check-in necessário — Mesa " + partida.getMesa();
+        String mensagem = "Você tem 5 minutos para confirmar presença na partida. Abra o app para fazer check-in.";
+
+        notificacaoService.notificar(partida.getInscricaoA().getJogador().getConta(),
+                TipoNotificacao.CHECK_IN_SOLICITADO, titulo, mensagem, torneioId, null, partida.getId());
+        notificacaoService.notificar(partida.getInscricaoB().getJogador().getConta(),
+                TipoNotificacao.CHECK_IN_SOLICITADO, titulo, mensagem, torneioId, null, partida.getId());
+
+        return salva;
+    }
+
+    // Jogador faz check-in na partida (dentro da janela de 5 minutos)
+    @Transactional
+    public Partida checkIn(Long id) {
+        Partida partida = buscarPorId(id);
+
+        if (partida.getCheckInExpiraEm() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Esta partida ainda não foi convocada");
+        }
+        if (LocalDateTime.now().isAfter(partida.getCheckInExpiraEm())) {
+            throw new ResponseStatusException(HttpStatus.GONE, "O prazo de check-in expirou");
+        }
+
+        Long jogadorId = permissaoService.contaLogada().getId();
+
+        if (partida.getInscricaoA() != null && partida.getInscricaoA().getJogador().getConta().getId().equals(jogadorId)) {
+            partida.setCheckInAEm(LocalDateTime.now());
+        } else if (partida.getInscricaoB() != null && partida.getInscricaoB().getJogador().getConta().getId().equals(jogadorId)) {
+            partida.setCheckInBEm(LocalDateTime.now());
+        } else {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Você não é participante desta partida");
+        }
+
+        return partidaRepository.save(partida);
     }
 
     // Os games da partida sao apagados junto (ON DELETE CASCADE). As partidas que apontavam para esta
