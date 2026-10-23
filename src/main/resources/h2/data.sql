@@ -108,3 +108,71 @@ INSERT INTO inscricao (torneio_id, jogador_id, status, pagamento_status, inscrit
 -- Evento para Dragon's Lair (loja_id=6)
 INSERT INTO evento (loja_id, titulo, descricao, tipo, vagas_max, data_inicio, status, criado_em, atualizado_em) VALUES
     (6, 'Torneio Draft Especial', 'Evento de Draft especial para os membros da loja.', 'OUTRO', 8, '2026-11-08 14:00:00', 'PUBLICADO', LOCALTIMESTAMP, LOCALTIMESTAMP);
+INSERT INTO conta (email, senha_hash, tipo, ativo, email_verificado, criado_em, atualizado_em) VALUES
+    ('contato@arenatcg.com.br', '$2a$10$rEQMXhxVZ2JrRhQSdYD/EOI2sEXZA36IuE1MVjJLslnUCHSyY4Gs6', 'LOJA', TRUE, TRUE, LOCALTIMESTAMP, LOCALTIMESTAMP);
+
+INSERT INTO endereco (cep, logradouro, numero, bairro, cidade, estado, latitude, longitude, criado_em) VALUES
+    ('05422001', 'Rua dos Pinheiros', '800', 'Pinheiros', 'Sao Paulo', 'SP', -23.56700000, -46.69100000, LOCALTIMESTAMP);
+
+INSERT INTO loja (conta_id, nome, slug, descricao, endereco_id, verificada, criado_em, atualizado_em) VALUES
+    (7, 'Arena TCG', 'arena-tcg', 'Loja de card games em Pinheiros, com torneios toda semana.', 3, TRUE, LOCALTIMESTAMP, LOCALTIMESTAMP);
+
+INSERT INTO loja_membro (loja_id, conta_id, papel, ativo, criado_em) VALUES
+    (7, 7, 'PROPRIETARIO', TRUE, LOCALTIMESTAMP);
+
+INSERT INTO conta (email, senha_hash, tipo, ativo, email_verificado, criado_em, atualizado_em) VALUES
+    ('ana@email.com',      '$2a$10$rEQMXhxVZ2JrRhQSdYD/EOI2sEXZA36IuE1MVjJLslnUCHSyY4Gs6', 'JOGADOR', TRUE, TRUE, LOCALTIMESTAMP, LOCALTIMESTAMP),
+    ('bruno@email.com',    '$2a$10$rEQMXhxVZ2JrRhQSdYD/EOI2sEXZA36IuE1MVjJLslnUCHSyY4Gs6', 'JOGADOR', TRUE, TRUE, LOCALTIMESTAMP, LOCALTIMESTAMP),
+    ('camila@email.com',   '$2a$10$rEQMXhxVZ2JrRhQSdYD/EOI2sEXZA36IuE1MVjJLslnUCHSyY4Gs6', 'JOGADOR', TRUE, TRUE, LOCALTIMESTAMP, LOCALTIMESTAMP),
+    ('daniel@email.com',   '$2a$10$rEQMXhxVZ2JrRhQSdYD/EOI2sEXZA36IuE1MVjJLslnUCHSyY4Gs6', 'JOGADOR', TRUE, TRUE, LOCALTIMESTAMP, LOCALTIMESTAMP),
+    ('felipe@email.com',   '$2a$10$rEQMXhxVZ2JrRhQSdYD/EOI2sEXZA36IuE1MVjJLslnUCHSyY4Gs6', 'JOGADOR', TRUE, TRUE, LOCALTIMESTAMP, LOCALTIMESTAMP),
+    ('gabriela@email.com', '$2a$10$rEQMXhxVZ2JrRhQSdYD/EOI2sEXZA36IuE1MVjJLslnUCHSyY4Gs6', 'JOGADOR', TRUE, TRUE, LOCALTIMESTAMP, LOCALTIMESTAMP),
+    ('henrique@email.com', '$2a$10$rEQMXhxVZ2JrRhQSdYD/EOI2sEXZA36IuE1MVjJLslnUCHSyY4Gs6', 'JOGADOR', TRUE, TRUE, LOCALTIMESTAMP, LOCALTIMESTAMP),
+    ('isabela@email.com',  '$2a$10$rEQMXhxVZ2JrRhQSdYD/EOI2sEXZA36IuE1MVjJLslnUCHSyY4Gs6', 'JOGADOR', TRUE, TRUE, LOCALTIMESTAMP, LOCALTIMESTAMP),
+    ('joao@email.com',     '$2a$10$rEQMXhxVZ2JrRhQSdYD/EOI2sEXZA36IuE1MVjJLslnUCHSyY4Gs6', 'JOGADOR', TRUE, TRUE, LOCALTIMESTAMP, LOCALTIMESTAMP),
+    ('karina@email.com',   '$2a$10$rEQMXhxVZ2JrRhQSdYD/EOI2sEXZA36IuE1MVjJLslnUCHSyY4Gs6', 'JOGADOR', TRUE, TRUE, LOCALTIMESTAMP, LOCALTIMESTAMP),
+    ('leonardo@email.com', '$2a$10$rEQMXhxVZ2JrRhQSdYD/EOI2sEXZA36IuE1MVjJLslnUCHSyY4Gs6', 'JOGADOR', TRUE, TRUE, LOCALTIMESTAMP, LOCALTIMESTAMP),
+    ('mariana@email.com',  '$2a$10$rEQMXhxVZ2JrRhQSdYD/EOI2sEXZA36IuE1MVjJLslnUCHSyY4Gs6', 'JOGADOR', TRUE, TRUE, LOCALTIMESTAMP, LOCALTIMESTAMP),
+    ('nicolas@email.com',  '$2a$10$rEQMXhxVZ2JrRhQSdYD/EOI2sEXZA36IuE1MVjJLslnUCHSyY4Gs6', 'JOGADOR', TRUE, TRUE, LOCALTIMESTAMP, LOCALTIMESTAMP),
+    ('otavio@email.com',   '$2a$10$rEQMXhxVZ2JrRhQSdYD/EOI2sEXZA36IuE1MVjJLslnUCHSyY4Gs6', 'JOGADOR', TRUE, TRUE, LOCALTIMESTAMP, LOCALTIMESTAMP),
+    ('patricia@email.com', '$2a$10$rEQMXhxVZ2JrRhQSdYD/EOI2sEXZA36IuE1MVjJLslnUCHSyY4Gs6', 'JOGADOR', TRUE, TRUE, LOCALTIMESTAMP, LOCALTIMESTAMP);
+
+INSERT INTO jogador (conta_id, nome, nickname, cidade, estado, criado_em, atualizado_em) VALUES
+    (8,  'Ana Beatriz Lima',   'anabialima',  'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (9,  'Bruno Carvalho',     'brunoc',      'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (10, 'Camila Ferreira',    'camif',       'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (11, 'Daniel Rocha',       'danrocha',    'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (12, 'Felipe Nogueira',    'fenogueira',  'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (13, 'Gabriela Mendes',    'gabimendes',  'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (14, 'Henrique Alves',     'henriquea',   'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (15, 'Isabela Costa',      'isacosta',    'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (16, 'Joao Pedro Santos',  'jpsantos',    'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (17, 'Karina Duarte',      'karidu',      'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (18, 'Leonardo Pires',     'leopires',    'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (19, 'Mariana Teixeira',   'marit',       'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (20, 'Nicolas Ribeiro',    'nickribeiro', 'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (21, 'Otavio Barros',      'otaviob',     'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (22, 'Patricia Gomes',     'patigomes',   'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP);
+
+INSERT INTO torneio (loja_id, jogo_id, formato_id, titulo, descricao, vagas_max, taxa_inscricao, premiacao,
+                     inscricoes_ate, data_inicio, status, criado_em, atualizado_em) VALUES
+    (7, 1, 1, 'Copa Arena Standard', 'Torneio de Magic, formato Standard, melhor de 3. Falta apenas uma vaga.',
+     16, 0.00, 'Trofeu e 5 boosters para o campeao',
+     '2026-12-12 17:00:00', '2026-12-12 18:00:00', 'INSCRICOES_ABERTAS', LOCALTIMESTAMP, LOCALTIMESTAMP);
+
+INSERT INTO inscricao (torneio_id, jogador_id, status, pagamento_status, inscrito_em, check_in_em) VALUES
+    (7, 8,  'CONFIRMADO', 'ISENTO', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (7, 9,  'CONFIRMADO', 'ISENTO', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (7, 10, 'CONFIRMADO', 'ISENTO', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (7, 11, 'CONFIRMADO', 'ISENTO', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (7, 12, 'CONFIRMADO', 'ISENTO', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (7, 13, 'CONFIRMADO', 'ISENTO', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (7, 14, 'CONFIRMADO', 'ISENTO', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (7, 15, 'CONFIRMADO', 'ISENTO', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (7, 16, 'CONFIRMADO', 'ISENTO', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (7, 17, 'CONFIRMADO', 'ISENTO', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (7, 18, 'CONFIRMADO', 'ISENTO', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (7, 19, 'CONFIRMADO', 'ISENTO', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (7, 20, 'CONFIRMADO', 'ISENTO', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (7, 21, 'CONFIRMADO', 'ISENTO', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (7, 22, 'CONFIRMADO', 'ISENTO', LOCALTIMESTAMP, LOCALTIMESTAMP);
