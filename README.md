@@ -26,10 +26,13 @@ API REST para lojas de card game organizarem torneios e eventos, e para jogadore
 - O funcionário acessa o painel web normalmente; o `lojaId` vem no `LoginResponse` e é usado para rotear o acesso ao painel correto.
 - Acesso ao app mobile: negado (o guard do web aceita `LOJA`, `ADMIN` e `FUNCIONARIO`).
 
-**Check-in de partida**
-- `POST /partidas/{id}/convocar` (equipe da loja): define `checkInExpiraEm = agora + 5 min` e envia notificação `CHECK_IN_SOLICITADO` aos dois jogadores.
-- `POST /partidas/{id}/check-in` (jogador autenticado): registra `checkInAEm` ou `checkInBEm` conforme a inscrição do jogador.
-- Os campos `checkInExpiraEm`, `checkInAEm` e `checkInBEm` retornam em `GET /partidas/{id}` para o app mobile fazer o polling.
+**Check-in de partida** (chave gerada automaticamente)
+- `POST /partidas/{id}/convocar` (equipe da loja): só vale para partida `PRONTA`. Define `checkInExpiraEm = agora + 5 min` (`CHECK_IN_SEGUNDOS`) e envia notificação `CHECK_IN_SOLICITADO` aos dois jogadores. Com o prazo aberto, responde 409; só dá para chamar de novo depois que ele acaba.
+- `POST /partidas/{id}/check-in` (jogador autenticado): registra `checkInAEm` ou `checkInBEm`. **Quando os dois confirmam, a partida vira `EM_ANDAMENTO` sozinha** (`iniciadaEm` preenchido).
+- `GET /partidas/convocacao-pendente` (jogador autenticado): a partida em que o jogador foi chamado e ainda não confirmou (204 se não houver). O app mobile consulta esta rota para abrir sozinho a tela verde de confirmação.
+- **Resultado só depois do check-in:** `POST /partidas/{id}/resultado` (e os games) respondem 409 enquanto a partida não está `EM_ANDAMENTO`, ou seja, enquanto os dois não confirmaram. Depois disso a loja lança vitória, empate, W.O. etc. normalmente.
+- **Fim do prazo** (`TorneioScheduler`, a cada 5 s): quem confirmou vence por **W.O.** e avança; se **ninguém** confirmou, a partida termina em `DUPLO_NO_SHOW` e ninguém avança daquela mesa (a chave segue com quem sobrar). A final precisa de campeão: se ninguém confirmar nela, a partida continua `PRONTA` e a loja chama de novo. Os jogadores são avisados do resultado.
+- `GET /torneios/{id}/chaveamento` traz `checkInExpiraEm`, `checkInA` e `checkInB` em cada partida; `GET /partidas/{id}` traz `checkInExpiraEm`, `checkInAEm` e `checkInBEm`.
 
 **Mudança técnica:** o chaveamento e os resultados agora rodam em Java (`ChaveamentoService`), igual no H2 e no MySQL. As procedures do script SQL não são mais chamadas; as views e as triggers continuam valendo.
 
@@ -71,6 +74,7 @@ A API sobe em `http://localhost:8080`, já com dados de teste. Os dados voltam a
 | `SPRING_MAIL_HOST`, `SPRING_MAIL_PORT`, `SPRING_MAIL_USERNAME`, `SPRING_MAIL_PASSWORD`, `MAIL_FROM` | SMTP para enviar o email de redefinição de senha | Sem SMTP, o email é escrito no log |
 | `JWT_EXPIRACAO_MS` | Validade do login | 24 h |
 | `AGENDADOR_INTERVALO_MS` | Intervalo das tarefas automáticas | 1 minuto |
+| `CHECK_IN_SEGUNDOS` | Tempo que os dois jogadores têm para confirmar presença depois de chamados | 300 (5 minutos) |
 | `UPLOAD_DIR` | Pasta das imagens enviadas (foto de perfil), relativa à pasta em que a API é iniciada | `uploads` |
 
 ## Contas de teste (H2)

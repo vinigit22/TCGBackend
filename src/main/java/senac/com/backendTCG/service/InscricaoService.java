@@ -18,12 +18,18 @@ import senac.com.backendTCG.entity.enums.TipoNotificacao;
 import senac.com.backendTCG.repository.InscricaoRepository;
 
 import java.time.LocalDateTime;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class InscricaoService {
+
+    // Pagamento em dia: so estas inscricoes podem fazer check-in e entrar na chave
+    public static final Set<StatusPagamento> PAGAMENTOS_LIBERADOS =
+            EnumSet.of(StatusPagamento.PAGO, StatusPagamento.ISENTO);
 
     private final InscricaoRepository inscricaoRepository;
     private final TorneioService torneioService;
@@ -150,7 +156,9 @@ public class InscricaoService {
         return inscricaoRepository.save(inscricao);
     }
 
-    // Check-in no dia do torneio: so inscricoes CONFIRMADAS entram na chave
+    // Check-in no dia do torneio: so inscricoes CONFIRMADAS entram na chave, e so confirma
+    // quem esta com o pagamento em dia (PAGO ou ISENTO). A plataforma nao processa pagamentos:
+    // o jogador paga na loja e a equipe marca como pago.
     @Transactional
     public Inscricao checkIn(Long id) {
         Inscricao inscricao = buscarPorId(id);
@@ -208,6 +216,10 @@ public class InscricaoService {
         }
         if (novo == StatusInscricao.CONFIRMADO && statusTorneio == StatusTorneio.CANCELADO) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Este torneio foi cancelado");
+        }
+        if (novo == StatusInscricao.CONFIRMADO && !PAGAMENTOS_LIBERADOS.contains(inscricao.getPagamentoStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Pagamento pendente: marque a inscrição como paga (ou isenta) antes do check-in");
         }
 
         StatusInscricao anterior = inscricao.getStatus();

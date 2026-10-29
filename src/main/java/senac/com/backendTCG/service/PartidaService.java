@@ -1,6 +1,7 @@
 package senac.com.backendTCG.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +20,7 @@ import senac.com.backendTCG.repository.PartidaRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +33,9 @@ public class PartidaService {
     private final ChaveamentoService chaveamentoService;
     private final NotificacaoService notificacaoService;
     private final PermissaoService permissaoService;
+
+    @Value("${app.check-in.segundos:300}")
+    private long segundosCheckIn;
 
     // Partidas de torneio excluido (soft delete) ficam de fora
     public List<Partida> listar(Long rodadaId, Long torneioId) {
@@ -133,7 +138,9 @@ public class PartidaService {
         return partida;
     }
 
-    // Loja convoca os jogadores: abre janela de 5 min para check-in e envia notificacao a cada um
+    // Loja convoca os jogadores: abre janela de 5 min para check-in e notifica os dois. A partida so comeca
+    // (EM_ANDAMENTO) quando os dois confirmam presenca no app. Se o prazo acaba antes disso, o agendador
+    // (TorneioScheduler) da W.O. a quem confirmou; se ninguem confirmou, ninguem avanca.
     @Transactional
     public Partida convocar(Long id) {
         Partida partida = buscarPorId(id);
@@ -142,15 +149,27 @@ public class PartidaService {
         if (partida.getInscricaoA() == null || partida.getInscricaoB() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A partida precisa ter dois jogadores para ser convocada");
         }
+        if (partida.getStatus() == StatusPartida.FINALIZADA) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Esta partida já foi encerrada");
+        }
+        if (partida.getStatus() == StatusPartida.EM_ANDAMENTO) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Esta partida já começou: os dois jogadores já confirmaram presença");
+        }
 
-        partida.setCheckInExpiraEm(LocalDateTime.now().plusMinutes(5));
+        LocalDateTime agora = LocalDateTime.now();
+        if (partida.getCheckInExpiraEm() != null && agora.isBefore(partida.getCheckInExpiraEm())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Os jogadores já foram chamados. Aguarde os 5 minutos para a confirmação de presença.");
+        }
+
+        partida.setCheckInExpiraEm(agora.plusSeconds(segundosCheckIn));
         partida.setCheckInAEm(null);
         partida.setCheckInBEm(null);
         Partida salva = partidaRepository.save(partida);
 
         Long torneioId = partida.getRodada().getTorneio().getId();
-        String titulo = "Check-in necessário — Mesa " + partida.getMesa();
-        String mensagem = "Você tem 5 minutos para confirmar presença na partida. Abra o app para fazer check-in.";
+        String titulo = "Você foi chamado — Mesa " + partida.getMesa();
+        String mensagem = "Confirme sua presença em até 5 minutos. Quem não confirmar perde a partida por W.O.";
 
         notificacaoService.notificar(partida.getInscricaoA().getJogador().getConta(),
                 TipoNotificacao.CHECK_IN_SOLICITADO, titulo, mensagem, torneioId, null, partida.getId());
@@ -160,29 +179,52 @@ public class PartidaService {
         return salva;
     }
 
-    // Jogador faz check-in na partida (dentro da janela de 5 minutos)
+    // Jogador faz check-in na partida (dentro da janela de 5 minutos). Quando os dois confirmaram,
+    // a partida comeca: vira EM_ANDAMENTO e a loja passa a poder lancar o resultado.
     @Transactional
     public Partida checkIn(Long id) {
         Partida partida = buscarPorId(id);
 
+        if (partida.getStatus() == StatusPartida.FINALIZADA) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Esta partida já foi encerrada");
+        }
         if (partida.getCheckInExpiraEm() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Esta partida ainda não foi convocada");
         }
-        if (LocalDateTime.now().isAfter(partida.getCheckInExpiraEm())) {
+        LocalDateTime agora = LocalDateTime.now();
+        if (agora.isAfter(partida.getCheckInExpiraEm())) {
             throw new ResponseStatusException(HttpStatus.GONE, "O prazo de check-in expirou");
         }
 
         Long jogadorId = permissaoService.contaLogada().getId();
 
         if (partida.getInscricaoA() != null && partida.getInscricaoA().getJogador().getConta().getId().equals(jogadorId)) {
-            partida.setCheckInAEm(LocalDateTime.now());
+            if (partida.getCheckInAEm() == null) {
+                partida.setCheckInAEm(agora);
+            }
         } else if (partida.getInscricaoB() != null && partida.getInscricaoB().getJogador().getConta().getId().equals(jogadorId)) {
-            partida.setCheckInBEm(LocalDateTime.now());
+            if (partida.getCheckInBEm() == null) {
+                partida.setCheckInBEm(agora);
+            }
         } else {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Você não é participante desta partida");
         }
 
+        if (partida.getCheckInAEm() != null && partida.getCheckInBEm() != null
+                && partida.getStatus() == StatusPartida.PRONTA) {
+            partida.setStatus(StatusPartida.EM_ANDAMENTO);
+            partida.setIniciadaEm(agora);
+        }
+
         return partidaRepository.save(partida);
+    }
+
+    // Partida em que o jogador logado foi chamado e ainda nao confirmou presenca (o app abre a tela de check-in)
+    public Optional<Partida> convocacaoPendente() {
+        Long contaId = permissaoService.contaLogada().getId();
+        return partidaRepository.findConvocadasSemCheckIn(contaId, LocalDateTime.now()).stream()
+                .filter(partida -> partida.getRodada().getTorneio().getDeletadoEm() == null)
+                .findFirst();
     }
 
     // Os games da partida sao apagados junto (ON DELETE CASCADE). As partidas que apontavam para esta

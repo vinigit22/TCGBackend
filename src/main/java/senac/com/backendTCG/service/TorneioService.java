@@ -153,11 +153,15 @@ public class TorneioService {
         buscarPorId(id);
 
         return jdbcTemplate.query("""
-                        SELECT torneio_id, rodada, nome_rodada, partida_id, mesa, jogador_a, jogador_b,
-                               games_a, games_b, resultado, vencedor, status
-                          FROM vw_chaveamento
-                         WHERE torneio_id = ?
-                         ORDER BY rodada, mesa
+                        SELECT v.torneio_id, v.rodada, v.nome_rodada, v.partida_id, v.mesa, v.jogador_a, v.jogador_b,
+                               v.games_a, v.games_b, v.resultado, v.vencedor, v.status,
+                               p.check_in_expira_em,
+                               (p.check_in_a_em IS NOT NULL) AS check_in_a,
+                               (p.check_in_b_em IS NOT NULL) AS check_in_b
+                          FROM vw_chaveamento v
+                          JOIN partida p ON p.id = v.partida_id
+                         WHERE v.torneio_id = ?
+                         ORDER BY v.rodada, v.mesa
                         """,
                 new DataClassRowMapper<>(ChaveamentoResponse.class), id);
     }

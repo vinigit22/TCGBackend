@@ -1,6 +1,8 @@
 package senac.com.backendTCG.dto;
 
-// Linha da view vw_chaveamento
+import java.time.LocalDateTime;
+
+// Linha da view vw_chaveamento + check-in da partida (checkInA / checkInB: o jogador A / B ja confirmou presenca)
 public record ChaveamentoResponse(
         Long torneioId,
         Integer rodada,
@@ -13,5 +15,8 @@ public record ChaveamentoResponse(
         Integer gamesB,
         String resultado,
         String vencedor,
-        String status
+        String status,
+        LocalDateTime checkInExpiraEm,
+        Boolean checkInA,
+        Boolean checkInB
 ) {}

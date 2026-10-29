@@ -103,5 +103,6 @@ public class GameService {
     private void verificarPodeAlterar(Partida partida) {
         torneioService.verificarPodeGerenciar(partida.getRodada().getTorneio());
         chaveamentoService.verificarPartidaEmJogo(partida);
+        chaveamentoService.verificarPartidaComecou(partida);
     }
 }

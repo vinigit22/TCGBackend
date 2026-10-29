@@ -26,6 +26,14 @@ public class PartidaController {
         return ResponseEntity.ok(partidaService.listar(rodadaId, torneioId));
     }
 
+    // Partida em que o jogador logado foi chamado e ainda nao confirmou presenca (204 se nao houver)
+    @GetMapping("/convocacao-pendente")
+    public ResponseEntity<Partida> convocacaoPendente() {
+        return partidaService.convocacaoPendente()
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<Partida> buscarPorId(@PathVariable Long id) {
         return ResponseEntity.ok(partidaService.buscarPorId(id));
@@ -63,13 +71,15 @@ public class PartidaController {
         return ResponseEntity.ok(partidaService.reabrir(id));
     }
 
-    // Loja convoca os jogadores: abre a janela de 5 minutos para check-in e notifica ambos
+    // Loja convoca os jogadores: abre a janela de 5 minutos para check-in e notifica quem ainda nao confirmou.
+    // A partida so comeca quando os dois confirmam presenca.
     @PostMapping("/{id}/convocar")
     public ResponseEntity<Partida> convocar(@PathVariable Long id) {
         return ResponseEntity.ok(partidaService.convocar(id));
     }
 
-    // Jogador confirma presença dentro da janela de 5 minutos (requer autenticacao do proprio jogador)
+    // Jogador confirma presença dentro da janela de 5 minutos (requer autenticacao do proprio jogador).
+    // Com os dois check-ins feitos a partida vira EM_ANDAMENTO.
     @PostMapping("/{id}/check-in")
     public ResponseEntity<Partida> checkIn(@PathVariable Long id) {
         return ResponseEntity.ok(partidaService.checkIn(id));

@@ -72,6 +72,16 @@ public class ChaveamentoService {
         List<Inscricao> confirmados = new ArrayList<>(inscricaoRepository.findByTorneio_IdAndStatusIn(
                 torneio.getId(), List.of(StatusInscricao.CONFIRMADO)));
 
+        // O check-in ja exige pagamento em dia, mas o pagamento pode ter voltado para PENDENTE depois
+        List<String> semPagamento = confirmados.stream()
+                .filter(i -> !InscricaoService.PAGAMENTOS_LIBERADOS.contains(i.getPagamentoStatus()))
+                .map(i -> "@" + i.getJogador().getNickname())
+                .toList();
+        if (!semPagamento.isEmpty()) {
+            throw conflito("Pagamento pendente de " + String.join(", ", semPagamento)
+                    + ": marque como pago ou cancele a inscrição antes de gerar a chave.");
+        }
+
         if (confirmados.size() < 2) {
             throw conflito("São necessários pelo menos 2 jogadores confirmados (check-in) para gerar a chave.");
         }
@@ -183,6 +193,8 @@ public class ChaveamentoService {
 
     public void registrarResultado(Partida partida, ResultadoPartidaRequest request) {
         verificarPartidaEmJogo(partida);
+
+        verificarPartidaComecou(partida);
 
         ResultadoPartida resultado = request.resultado();
         boolean temGames = atualizarPlacarPelosGames(partida);
@@ -348,6 +360,62 @@ public class ChaveamentoService {
         if (partida.getInscricaoA() == null || partida.getInscricaoB() == null) {
             throw conflito("A partida ainda não tem os dois jogadores definidos.");
         }
+    }
+
+    // Na chave gerada automaticamente a partida so comeca (EM_ANDAMENTO) quando os dois jogadores
+    // confirmam presenca pelo app (POST /partidas/{id}/check-in). Partidas montadas a mao nao tem check-in.
+    // So depois disso a loja lanca resultado (inclusive W.O.); antes, o W.O. por falta de check-in e automatico.
+    public void verificarPartidaComecou(Partida partida) {
+        boolean chaveAutomatica = partida.getRodada().getTorneio().getTotalRodadas() != null;
+
+        if (chaveAutomatica && partida.getStatus() != StatusPartida.EM_ANDAMENTO) {
+            throw conflito("A partida só começa quando os dois jogadores confirmarem presença no app. "
+                    + "Convoque os jogadores (POST /partidas/" + partida.getId() + "/convocar): se o prazo de 5 minutos "
+                    + "acabar, quem confirmou vence por W.O.");
+        }
+    }
+
+    // Fim do prazo de check-in (5 min depois da convocacao). Quem confirmou vence por W.O.; se ninguem
+    // confirmou, ninguem avanca desta mesa (DUPLO_NO_SHOW, e a chave segue com quem sobrar).
+    // A final precisa de um campeao: fica como esta, esperando uma nova convocacao da loja.
+    // Devolve true se a partida foi encerrada.
+    public boolean encerrarPrazoDeCheckIn(Partida partida) {
+        boolean confirmouA = partida.getCheckInAEm() != null;
+        boolean confirmouB = partida.getCheckInBEm() != null;
+
+        // Com os dois confirmados a partida ja virou EM_ANDAMENTO no check-in
+        if (partida.getStatus() != StatusPartida.PRONTA || (confirmouA && confirmouB)) {
+            return false;
+        }
+        if (!confirmouA && !confirmouB && ehFinalDaChave(partida.getRodada(), partida.getRodada().getTorneio())) {
+            return false;
+        }
+
+        ResultadoPartida resultado = confirmouA ? ResultadoPartida.WO_A
+                : confirmouB ? ResultadoPartida.WO_B : ResultadoPartida.DUPLO_NO_SHOW;
+        Inscricao vencedor = switch (resultado) {
+            case WO_A -> partida.getInscricaoA();
+            case WO_B -> partida.getInscricaoB();
+            default -> null;
+        };
+
+        finalizar(partida, resultado, vencedor, "Check-in não confirmado no prazo de 5 minutos");
+
+        if (vencedor == null) {
+            notificarJogadores(partida, TipoNotificacao.RESULTADO_REGISTRADO, "Partida encerrada sem vencedor",
+                    "Nenhum dos jogadores confirmou presença em 5 minutos na mesa " + partida.getMesa() + " da "
+                            + partida.getRodada().getNome() + ": ninguém avança desta mesa.");
+        } else {
+            Inscricao ausente = vencedor == partida.getInscricaoA() ? partida.getInscricaoB() : partida.getInscricaoA();
+            Long torneioId = partida.getRodada().getTorneio().getId();
+            notificacaoService.notificar(vencedor.getJogador().getConta(), TipoNotificacao.RESULTADO_REGISTRADO,
+                    "Vitória por W.O.", "Seu adversário não confirmou presença em 5 minutos na mesa " + partida.getMesa()
+                            + ". Você venceu por W.O. e avança na chave.", torneioId, null, partida.getId());
+            notificacaoService.notificar(ausente.getJogador().getConta(), TipoNotificacao.RESULTADO_REGISTRADO,
+                    "Derrota por W.O.", "Você não confirmou presença em 5 minutos na mesa " + partida.getMesa()
+                            + " e perdeu a partida por W.O.", torneioId, null, partida.getId());
+        }
+        return true;
     }
 
     // ---------------------------------------------------------------------

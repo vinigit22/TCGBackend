@@ -6,11 +6,14 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import senac.com.backendTCG.entity.Conta;
 import senac.com.backendTCG.entity.Inscricao;
+import senac.com.backendTCG.entity.Partida;
 import senac.com.backendTCG.entity.Torneio;
+import senac.com.backendTCG.entity.enums.StatusPartida;
 import senac.com.backendTCG.entity.enums.StatusTorneio;
 import senac.com.backendTCG.entity.enums.TipoNotificacao;
 import senac.com.backendTCG.repository.InscricaoRepository;
 import senac.com.backendTCG.repository.NotificacaoRepository;
+import senac.com.backendTCG.repository.PartidaRepository;
 import senac.com.backendTCG.repository.TorneioRepository;
 
 import java.time.LocalDateTime;
@@ -22,6 +25,7 @@ import java.util.Set;
 // Tarefas por prazo, executadas a cada app.agendador.intervalo-ms:
 //  - encerra as inscricoes dos torneios cujo prazo (inscricoes_ate) passou;
 //  - lembra os inscritos quando faltam menos de 24h para o torneio (uma vez por jogador).
+// E, num ciclo mais curto (5 s), encerra o check-in das partidas cujo prazo de 5 minutos acabou.
 @Component
 @RequiredArgsConstructor
 public class TorneioScheduler {
@@ -32,6 +36,8 @@ public class TorneioScheduler {
     private final TorneioRepository torneioRepository;
     private final InscricaoRepository inscricaoRepository;
     private final NotificacaoRepository notificacaoRepository;
+    private final PartidaRepository partidaRepository;
+    private final ChaveamentoService chaveamentoService;
     private final NotificacaoService notificacaoService;
 
     // Lembretes ja enviados ("contaId:torneioId") desde que a aplicacao subiu. O banco nao tem coluna de
@@ -45,6 +51,21 @@ public class TorneioScheduler {
         LocalDateTime agora = LocalDateTime.now();
         encerrarInscricoesVencidas(agora);
         lembrarTorneiosProximos(agora);
+    }
+
+    // Partida convocada e com o prazo de check-in vencido: quem confirmou vence por W.O.; se ninguem
+    // confirmou, ninguem avanca. Roda de 5 em 5 s para o W.O. sair logo depois dos 5 minutos.
+    @Scheduled(fixedDelay = 5000, initialDelay = 5000)
+    @Transactional
+    public void encerrarCheckInsVencidos() {
+        List<Partida> vencidas = partidaRepository.findByStatusAndCheckInExpiraEmBefore(
+                StatusPartida.PRONTA, LocalDateTime.now());
+
+        for (Partida partida : vencidas) {
+            if (partida.getRodada().getTorneio().getStatus() == StatusTorneio.EM_ANDAMENTO) {
+                chaveamentoService.encerrarPrazoDeCheckIn(partida);
+            }
+        }
     }
 
     private void encerrarInscricoesVencidas(LocalDateTime agora) {
