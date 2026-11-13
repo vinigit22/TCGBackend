@@ -155,6 +155,22 @@ O app (TCG-front-mobile) é só para jogadores. O que a API oferece para ele:
 - **Limites:** login de conta desativada com senha errada responde 401, como qualquer senha errada (não revela que o email existe).
 - **Limitação:** a lista de logouts, a contagem de tentativas e o controle de lembretes já enviados ficam na memória da aplicação. Reiniciar a aplicação os zera, e com mais de uma instância rodando, cada uma teria o seu.
 
+## Paginação
+
+As listagens de **partidas** (`GET /partidas`) e **contas** (`GET /contas`) aceitam paginação opcional:
+
+- `?page=0&size=20`: `page` começa em 0 e `size` vai de 1 a 100 (padrão 20). Valores fora disso respondem 400.
+- O total de registros vem no header `X-Total-Count`. Passando da última página, a resposta é uma lista vazia.
+- Sem `page` nem `size`, a lista vem inteira, como antes (os fronts atuais não mudam).
+
+## Testes
+
+```bash
+./mvnw test        # Windows: mvnw.cmd test
+```
+
+`FluxoTorneioTest` sobe a aplicação com o H2 e os dados de teste e cobre, via HTTP: geração da chave, a regra de que quem não pagou não entra, resultado só depois do check-in dos dois, W.O. quando só um confirma, mesa sem vencedor quando ninguém confirma e a paginação. Cada teste é desfeito no fim, então não interfere nos outros. O prazo de 5 minutos é vencido no próprio teste, sem espera.
+
 ## Erros
 
 As respostas de erro vêm em JSON, com a mensagem no campo `detail`:

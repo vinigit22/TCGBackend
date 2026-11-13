@@ -2,6 +2,7 @@ package senac.com.backendTCG.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import senac.com.backendTCG.dto.AlterarSenhaRequest;
@@ -22,8 +23,14 @@ public class ContaController {
     private final ContaService contaService;
 
     @GetMapping
-    public ResponseEntity<List<Conta>> listarTodos(@RequestParam(required = false) TipoConta tipo) {
-        return ResponseEntity.ok(contaService.listarTodos(tipo));
+    public ResponseEntity<List<Conta>> listarTodos(@RequestParam(required = false) TipoConta tipo,
+                                                   @RequestParam(required = false) Integer page,
+                                                   @RequestParam(required = false) Integer size) {
+        Pageable pageable = Paginacao.de(page, size);
+        if (pageable == null) {
+            return ResponseEntity.ok(contaService.listarTodos(tipo));
+        }
+        return Paginacao.resposta(contaService.listarPaginado(tipo, pageable));
     }
 
     @GetMapping("/{id}")

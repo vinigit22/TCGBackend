@@ -2,6 +2,7 @@ package senac.com.backendTCG.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,8 +23,11 @@ public class PartidaController {
 
     @GetMapping
     public ResponseEntity<List<Partida>> listar(@RequestParam(required = false) Long rodadaId,
-                                                @RequestParam(required = false) Long torneioId) {
-        return ResponseEntity.ok(partidaService.listar(rodadaId, torneioId));
+                                                @RequestParam(required = false) Long torneioId,
+                                                @RequestParam(required = false) Integer page,
+                                                @RequestParam(required = false) Integer size) {
+        Pageable pageable = Paginacao.de(page, size);
+        return Paginacao.resposta(partidaService.listar(rodadaId, torneioId), pageable);
     }
 
     // Partida em que o jogador logado foi chamado e ainda nao confirmou presenca (204 se nao houver)

@@ -1,6 +1,10 @@
 package senac.com.backendTCG.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -40,6 +44,16 @@ public class ContaService {
         return tipo == null
                 ? contaRepository.findAll()
                 : contaRepository.findByTipo(tipo);
+    }
+
+    // Mesma listagem, paginada no banco (ordem estavel por id)
+    public Page<Conta> listarPaginado(TipoConta tipo, Pageable pageable) {
+        permissaoService.verificarAdmin();
+
+        Pageable ordenado = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by("id"));
+        return tipo == null
+                ? contaRepository.findAll(ordenado)
+                : contaRepository.findByTipo(tipo, ordenado);
     }
 
     public Conta buscarPorId(Long id) {
