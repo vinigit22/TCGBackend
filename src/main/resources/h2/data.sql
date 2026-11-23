@@ -8,7 +8,7 @@
 
 INSERT INTO jogo (nome, slug, ativo) VALUES
     ('Magic: The Gathering', 'magic',     TRUE),
-    ('Pokemon TCG',          'pokemon',   TRUE),
+    ('Pokémon TCG',          'pokemon',   TRUE),
     ('Yu-Gi-Oh!',            'yugioh',    TRUE),
     ('One Piece Card Game',  'one-piece', TRUE),
     ('Digimon Card Game',    'digimon',   TRUE);
@@ -28,15 +28,15 @@ INSERT INTO conta (email, senha_hash, tipo, ativo, email_verificado, criado_em, 
     ('lucas@email.com',          '$2a$10$rEQMXhxVZ2JrRhQSdYD/EOI2sEXZA36IuE1MVjJLslnUCHSyY4Gs6', 'JOGADOR', TRUE, TRUE, LOCALTIMESTAMP, LOCALTIMESTAMP);
 
 INSERT INTO endereco (cep, logradouro, numero, bairro, cidade, estado, latitude, longitude, criado_em) VALUES
-    ('01310100', 'Avenida Paulista', '1000', 'Bela Vista', 'Sao Paulo', 'SP', -23.56320000, -46.65430000, LOCALTIMESTAMP);
+    ('01310100', 'Avenida Paulista', '1000', 'Bela Vista', 'São Paulo', 'SP', -23.56320000, -46.65430000, LOCALTIMESTAMP);
 
 INSERT INTO loja (conta_id, nome, slug, descricao, endereco_id, verificada, criado_em, atualizado_em) VALUES
-    (1, 'Card House', 'card-house', 'Loja especializada em card games na regiao central de Sao Paulo.', 1, FALSE, LOCALTIMESTAMP, LOCALTIMESTAMP);
+    (1, 'Card House', 'card-house', 'Loja especializada em card games na região central de São Paulo.', 1, FALSE, LOCALTIMESTAMP, LOCALTIMESTAMP);
 
 INSERT INTO jogador (conta_id, nome, nickname, cidade, estado, criado_em, atualizado_em) VALUES
-    (2, 'Eric Abreu',       'ericabreu',   'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
-    (3, 'Samuel Barbosa',   'sambarbosa',  'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
-    (4, 'Vinicius Marques', 'vinimarques', 'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (2, 'Eric Abreu',       'ericabreu',   'São Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (3, 'Samuel Barbosa',   'sambarbosa',  'São Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (4, 'Vinícius Marques', 'vinimarques', 'São Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
     (5, 'Lucas Souza',      'lucassz',     'Guarulhos', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP);
 
 INSERT INTO loja_membro (loja_id, conta_id, papel, ativo, criado_em) VALUES
@@ -51,14 +51,14 @@ INSERT INTO evento (loja_id, titulo, descricao, tipo, vagas_max, data_inicio, st
 INSERT INTO torneio (loja_id, jogo_id, formato_id, titulo, descricao, vagas_max, taxa_inscricao, premiacao,
                      inscricoes_ate, data_inicio, status, criado_em, atualizado_em) VALUES
     (1, 1, 1, 'Standard Semanal', 'Torneio semanal de Magic, formato Standard, melhor de 3.',
-     4, 25.00, 'R$ 200 em creditos + 3 boosters para o campeao',
+     4, 25.00, 'R$ 200 em créditos + 3 boosters para o campeão',
      '2026-09-05 18:00:00', '2026-09-05 19:00:00', 'INSCRICOES_ABERTAS', LOCALTIMESTAMP, LOCALTIMESTAMP);
      INSERT INTO torneio (loja_id, jogo_id, formato_id, titulo, descricao, vagas_max, taxa_inscricao, premiacao,
                           inscricoes_ate, data_inicio, status, criado_em, atualizado_em) VALUES
-         (1, 2, 5, 'Pokemon Liga Local', 'Torneio de Pokemon TCG, formato Standard, aberto para todos os niveis.',
-          16, 20.00, '5 boosters para o campeao',
+         (1, 2, 5, 'Pokémon Liga Local', 'Torneio de Pokémon TCG, formato Standard, aberto para todos os níveis.',
+          16, 20.00, '5 boosters para o campeão',
           '2026-11-14 17:00:00', '2026-11-14 18:00:00', 'INSCRICOES_ABERTAS', LOCALTIMESTAMP, LOCALTIMESTAMP),
-         (1, 3, 7, 'Yu-Gi-Oh Duelo de Sabado', 'Torneio de Yu-Gi-Oh!, formato Advanced, melhor de 3.',
+         (1, 3, 7, 'Yu-Gi-Oh Duelo de Sábado', 'Torneio de Yu-Gi-Oh!, formato Advanced, melhor de 3.',
           8, 0.00, NULL,
           '2026-11-21 13:00:00', '2026-11-21 14:00:00', 'INSCRICOES_ABERTAS', LOCALTIMESTAMP, LOCALTIMESTAMP);
 
@@ -79,7 +79,7 @@ INSERT INTO conta (email, senha_hash, tipo, ativo, email_verificado, criado_em, 
     ('contato@dragonslair.com.br', '$2a$10$rEQMXhxVZ2JrRhQSdYD/EOI2sEXZA36IuE1MVjJLslnUCHSyY4Gs6', 'LOJA', TRUE, TRUE, LOCALTIMESTAMP, LOCALTIMESTAMP);
 
 INSERT INTO endereco (cep, logradouro, numero, bairro, cidade, estado, latitude, longitude, criado_em) VALUES
-    ('04101300', 'Rua Domingos de Morais', '500', 'Vila Mariana', 'Sao Paulo', 'SP', -23.59120000, -46.63280000, LOCALTIMESTAMP);
+    ('04101300', 'Rua Domingos de Morais', '500', 'Vila Mariana', 'São Paulo', 'SP', -23.59120000, -46.63280000, LOCALTIMESTAMP);
 
 INSERT INTO loja (conta_id, nome, slug, descricao, endereco_id, verificada, criado_em, atualizado_em) VALUES
     (6, 'Dragon''s Lair', 'dragons-lair', 'Loja especializada em RPG, board games e card games no bairro da Vila Mariana.', 2, TRUE, LOCALTIMESTAMP, LOCALTIMESTAMP);
@@ -92,11 +92,11 @@ INSERT INTO loja_membro (loja_id, conta_id, papel, ativo, criado_em) VALUES
 INSERT INTO torneio (loja_id, jogo_id, formato_id, titulo, descricao, vagas_max, taxa_inscricao, premiacao,
                      inscricoes_ate, data_inicio, status, criado_em, atualizado_em) VALUES
     -- Dragon's Lair: rascunho ainda nao publicado
-    (6, 4, 8, 'One Piece Grand Line Cup', 'Torneio de One Piece Card Game, formato Standard. Em preparacao.', 16, 30.00, 'Booster box para o 1o lugar', '2026-12-01 18:00:00', '2026-12-01 19:00:00', 'RASCUNHO', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (6, 4, 8, 'One Piece Grand Line Cup', 'Torneio de One Piece Card Game, formato Standard. Em preparação.', 16, 30.00, 'Booster box para o 1º lugar', '2026-12-01 18:00:00', '2026-12-01 19:00:00', 'RASCUNHO', LOCALTIMESTAMP, LOCALTIMESTAMP),
     -- Dragon's Lair: inscricoes encerradas, pronto para gerar a chave
-    (6, 1, 2, 'Magic Modern Showdown', 'Torneio de Magic formato Modern. Inscricoes encerradas, aguardando chave.', 8, 40.00, 'R$ 400 em creditos para o campeao', '2026-10-10 17:00:00', '2026-10-10 18:00:00', 'INSCRICOES_ENCERRADAS', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (6, 1, 2, 'Magic Modern Showdown', 'Torneio de Magic formato Modern. Inscrições encerradas, aguardando chave.', 8, 40.00, 'R$ 400 em créditos para o campeão', '2026-10-10 17:00:00', '2026-10-10 18:00:00', 'INSCRICOES_ENCERRADAS', LOCALTIMESTAMP, LOCALTIMESTAMP),
     -- Card House: torneio Digimon recem publicado
-    (1, 5, NULL, 'Digimon Season Opener', 'Torneio de Digimon Card Game, aberto para todos os niveis, sem taxa.', 12, 0.00, NULL, '2026-11-28 14:00:00', '2026-11-28 15:00:00', 'INSCRICOES_ABERTAS', LOCALTIMESTAMP, LOCALTIMESTAMP);
+    (1, 5, NULL, 'Digimon Season Opener', 'Torneio de Digimon Card Game, aberto para todos os níveis, sem taxa.', 12, 0.00, NULL, '2026-11-28 14:00:00', '2026-11-28 15:00:00', 'INSCRICOES_ABERTAS', LOCALTIMESTAMP, LOCALTIMESTAMP);
 
 -- Inscricoes confirmadas para o Magic Modern Showdown (torneio 5, Dragon's Lair)
 INSERT INTO inscricao (torneio_id, jogador_id, status, pagamento_status, inscrito_em, check_in_em) VALUES
@@ -112,7 +112,7 @@ INSERT INTO conta (email, senha_hash, tipo, ativo, email_verificado, criado_em, 
     ('contato@arenatcg.com.br', '$2a$10$rEQMXhxVZ2JrRhQSdYD/EOI2sEXZA36IuE1MVjJLslnUCHSyY4Gs6', 'LOJA', TRUE, TRUE, LOCALTIMESTAMP, LOCALTIMESTAMP);
 
 INSERT INTO endereco (cep, logradouro, numero, bairro, cidade, estado, latitude, longitude, criado_em) VALUES
-    ('05422001', 'Rua dos Pinheiros', '800', 'Pinheiros', 'Sao Paulo', 'SP', -23.56700000, -46.69100000, LOCALTIMESTAMP);
+    ('05422001', 'Rua dos Pinheiros', '800', 'Pinheiros', 'São Paulo', 'SP', -23.56700000, -46.69100000, LOCALTIMESTAMP);
 
 INSERT INTO loja (conta_id, nome, slug, descricao, endereco_id, verificada, criado_em, atualizado_em) VALUES
     (7, 'Arena TCG', 'arena-tcg', 'Loja de card games em Pinheiros, com torneios toda semana.', 3, TRUE, LOCALTIMESTAMP, LOCALTIMESTAMP);
@@ -138,26 +138,26 @@ INSERT INTO conta (email, senha_hash, tipo, ativo, email_verificado, criado_em, 
     ('patricia@email.com', '$2a$10$rEQMXhxVZ2JrRhQSdYD/EOI2sEXZA36IuE1MVjJLslnUCHSyY4Gs6', 'JOGADOR', TRUE, TRUE, LOCALTIMESTAMP, LOCALTIMESTAMP);
 
 INSERT INTO jogador (conta_id, nome, nickname, cidade, estado, criado_em, atualizado_em) VALUES
-    (8,  'Ana Beatriz Lima',   'anabialima',  'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
-    (9,  'Bruno Carvalho',     'brunoc',      'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
-    (10, 'Camila Ferreira',    'camif',       'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
-    (11, 'Daniel Rocha',       'danrocha',    'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
-    (12, 'Felipe Nogueira',    'fenogueira',  'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
-    (13, 'Gabriela Mendes',    'gabimendes',  'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
-    (14, 'Henrique Alves',     'henriquea',   'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
-    (15, 'Isabela Costa',      'isacosta',    'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
-    (16, 'Joao Pedro Santos',  'jpsantos',    'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
-    (17, 'Karina Duarte',      'karidu',      'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
-    (18, 'Leonardo Pires',     'leopires',    'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
-    (19, 'Mariana Teixeira',   'marit',       'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
-    (20, 'Nicolas Ribeiro',    'nickribeiro', 'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
-    (21, 'Otavio Barros',      'otaviob',     'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
-    (22, 'Patricia Gomes',     'patigomes',   'Sao Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP);
+    (8,  'Ana Beatriz Lima',   'anabialima',  'São Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (9,  'Bruno Carvalho',     'brunoc',      'São Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (10, 'Camila Ferreira',    'camif',       'São Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (11, 'Daniel Rocha',       'danrocha',    'São Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (12, 'Felipe Nogueira',    'fenogueira',  'São Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (13, 'Gabriela Mendes',    'gabimendes',  'São Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (14, 'Henrique Alves',     'henriquea',   'São Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (15, 'Isabela Costa',      'isacosta',    'São Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (16, 'João Pedro Santos',  'jpsantos',    'São Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (17, 'Karina Duarte',      'karidu',      'São Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (18, 'Leonardo Pires',     'leopires',    'São Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (19, 'Mariana Teixeira',   'marit',       'São Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (20, 'Nicolas Ribeiro',    'nickribeiro', 'São Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (21, 'Otávio Barros',      'otaviob',     'São Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP),
+    (22, 'Patrícia Gomes',     'patigomes',   'São Paulo', 'SP', LOCALTIMESTAMP, LOCALTIMESTAMP);
 
 INSERT INTO torneio (loja_id, jogo_id, formato_id, titulo, descricao, vagas_max, taxa_inscricao, premiacao,
                      inscricoes_ate, data_inicio, status, criado_em, atualizado_em) VALUES
     (7, 1, 1, 'Copa Arena Standard', 'Torneio de Magic, formato Standard, melhor de 3. Falta apenas uma vaga.',
-     16, 0.00, 'Trofeu e 5 boosters para o campeao',
+     16, 0.00, 'Troféu e 5 boosters para o campeão',
      '2026-12-12 17:00:00', '2026-12-12 18:00:00', 'INSCRICOES_ABERTAS', LOCALTIMESTAMP, LOCALTIMESTAMP);
 
 INSERT INTO inscricao (torneio_id, jogador_id, status, pagamento_status, inscrito_em, check_in_em) VALUES
