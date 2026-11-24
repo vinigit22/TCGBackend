@@ -1,0 +1,16 @@
+* [33m5377966[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Versão Final
+* [33m14d4c9d[m paginação adicional em partidas e contas
+* [33ma628bc4[m check-in de partida com tela verde no app e W.O. automático
+* [33m54888df[m mais dados no h2
+* [33md3672df[m feat: funcionários de loja, check-in de partida e correções no data.sql
+* [33m0c51621[m adicionei mais dois torneios
+* [33mb111f0f[m Integração parcial com Frontend-Mobile
+* [33mafa6f66[m Versão 2
+* [33m6f9bab1[m Revisão geral: correção de bugs, remoção de código sem uso e melhorias
+* [33m90adc51[m Correção read.me
+* [33mfb7cb1c[m Criação de todos os arquivos iniciais e criação do banco H2
+* [33m6a945de[m Ajuste em registro de usuários e início de desenvolvimento de classes
+* [33m7af7f32[m adicionando
+*   [33me202220[m Merge: resolve conflito no .gitignore
+[32m|[m[33m\[m  
+[32m|[m * [33m25bcd51[m Initial commit
